@@ -1,4 +1,17 @@
-###Import analysis
+################################################################################
+# Bulk RNA-seq Analysis: Neuregulin Treatment in WT and SARM1-KO Samples
+# 
+# Description: Differential expression analysis comparing neuregulin treatment
+# effects in wild-type and SARM1-knockout samples at 24 hours
+#
+# Requirements: 
+# - Salmon quantification files in subdirectories (named *_quant/)
+# - tx2gene mapping file (transcript ID to gene ID)
+# - Pseudobulk results file (for comparison analysis)
+# - R packages: tximport, DESeq2, AnnotationDbi, org.Mm.eg.db, 
+#   pheatmap, viridis, reshape2, dplyr, ggplot2, gridExtra
+################################################################################
+
 # Load required libraries
 library(tximport)
 library(DESeq2)
@@ -6,13 +19,34 @@ library(AnnotationDbi)
 library(org.Mm.eg.db)
 library(pheatmap)
 library(viridis)
+library(reshape2)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
 
+################################################################################
+# USER-DEFINED PATHS - MODIFY THESE FOR YOUR SYSTEM
+################################################################################
 
-# Set working directory to your quants folder
-setwd("Z:/Katya/BulkRNAseq/24hrs_NrgTreatment/ex005_ex008/quants")
+# Path to tx2gene file (transcript to gene ID mapping)
+tx2gene_path <- "path/to/tx2gene_corrected.csv"
+# Output directory for results
+output_dir <- "./results"
 
+# Path to pseudobulk results (for comparison analysis) from snRNAseq
+pseudobulk_path <- "path/to/pseudobulk_results.csv"
+# Create output directory
+dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+
+################################################################################
+# Set working directory to your quants folder (or modify path below)
+setwd("path/to/quants/folder")
 # List all directories in the quants folder
 sample_dirs <- list.dirs(path = ".", recursive = FALSE)
+
+# Exclude the results directory
+sample_dirs <- sample_dirs[!grepl("results$", sample_dirs)]
+
 print("Found these sample directories:")
 print(sample_dirs)
 
@@ -21,16 +55,13 @@ quant_files <- file.path(sample_dirs, "quant.sf")
 print("\nConstructed these paths to quant.sf files:")
 print(quant_files)
 
-
 # Read tx2gene file
-tx2gene <- read.csv("~/Data/BulkRNAseq/24hrs_NrgTreatment/ex005_ex008/tx2gene_corrected.csv", 
+tx2gene <- read.csv(tx2gene_path, 
                     header = TRUE, 
                     col.names = c("transcript_id", "gene_id"))
-
 # Look at the first few rows
 print("First few rows of tx2gene:")
 print(head(tx2gene))
-
 
 # Add .1 to transcript IDs (since they need versions to match quant.sf)
 tx2gene$transcript_id <- paste0(tx2gene$transcript_id, ".1")
@@ -90,7 +121,6 @@ dim(txi$counts)
 # Look at the first few genes and their counts
 print("\nFirst few genes and their counts:")
 head(txi$counts)
-
 
 ##
 # First, build our DESeq object with an interaction term
@@ -273,8 +303,6 @@ rownames(annotation_col_mean) <- colnames(fc_matrix)
 # Verify the order
 print(head(rownames(fc_matrix), 10))
 
-library(reshape2)
-
 # Convert fc_matrix to long format for ggplot
 fc_long <- melt(fc_matrix, varnames = c("Gene", "Sample"), value.name = "LogFC")
 
@@ -302,3 +330,256 @@ ggplot(fc_long, aes(x = Sample, y = Gene, fill = LogFC)) +
   # Keep the original order (no clustering)
   scale_x_discrete(limits = colnames(fc_matrix)) +
   scale_y_discrete(limits = rev(rownames(fc_matrix)))
+
+
+#Prepare data for Supplemental Figure 7E
+
+# First, get gene symbols for all genes in both result sets
+gene_symbols_wt <- mapIds(org.Mm.eg.db,
+                          keys = rownames(res_wt),
+                          column = "SYMBOL",
+                          keytype = "ENSEMBL",
+                          multiVals = "first")
+
+gene_symbols_ko <- mapIds(org.Mm.eg.db,
+                          keys = rownames(res_ko),
+                          column = "SYMBOL",
+                          keytype = "ENSEMBL",
+                          multiVals = "first")
+
+# Create comprehensive dataframes for WT results
+wt_results_df <- data.frame(
+  ENSEMBL_ID = rownames(res_wt),
+  GeneSymbol = gene_symbols_wt[rownames(res_wt)],
+  log2FoldChange = res_wt$log2FoldChange,
+  padj = res_wt$padj,
+  pvalue = res_wt$pvalue,
+  baseMean = res_wt$baseMean,
+  lfcSE = res_wt$lfcSE,
+  stat = res_wt$stat,
+  stringsAsFactors = FALSE
+)
+
+# Create comprehensive dataframes for SARM1-KO results
+ko_results_df <- data.frame(
+  ENSEMBL_ID = rownames(res_ko),
+  GeneSymbol = gene_symbols_ko[rownames(res_ko)],
+  log2FoldChange = res_ko$log2FoldChange,
+  padj = res_ko$padj,
+  pvalue = res_ko$pvalue,
+  baseMean = res_ko$baseMean,
+  lfcSE = res_ko$lfcSE,
+  stat = res_ko$stat,
+  stringsAsFactors = FALSE
+)
+
+# Handle missing gene symbols (replace NA with ENSEMBL ID)
+wt_results_df$GeneSymbol[is.na(wt_results_df$GeneSymbol)] <- wt_results_df$ENSEMBL_ID[is.na(wt_results_df$GeneSymbol)]
+ko_results_df$GeneSymbol[is.na(ko_results_df$GeneSymbol)] <- ko_results_df$ENSEMBL_ID[is.na(ko_results_df$GeneSymbol)]
+
+# Order by adjusted p-value
+wt_results_df <- wt_results_df[order(wt_results_df$padj, na.last = TRUE), ]
+ko_results_df <- ko_results_df[order(ko_results_df$padj, na.last = TRUE), ]
+
+# Print summaries
+cat("WT Results Summary:\n")
+cat("Total genes:", nrow(wt_results_df), "\n")
+cat("Significant genes (padj < 0.05):", sum(wt_results_df$padj < 0.05, na.rm = TRUE), "\n")
+cat("Significant genes (padj < 0.1):", sum(wt_results_df$padj < 0.1, na.rm = TRUE), "\n\n")
+
+cat("SARM1-KO Results Summary:\n")
+cat("Total genes:", nrow(ko_results_df), "\n")
+cat("Significant genes (padj < 0.05):", sum(ko_results_df$padj < 0.05, na.rm = TRUE), "\n")
+cat("Significant genes (padj < 0.1):", sum(ko_results_df$padj < 0.1, na.rm = TRUE), "\n\n")
+
+# Show top 10 results
+cat("Top 10 WT results:\n")
+print(head(wt_results_df[, c("GeneSymbol", "log2FoldChange", "padj")], 10))
+
+cat("\nTop 10 SARM1-KO results:\n")
+print(head(ko_results_df[, c("GeneSymbol", "log2FoldChange", "padj")], 10))
+
+# Write to CSV files
+write.csv(wt_results_df, 
+          file = file.path(output_dir, "WT_NRG_treatment_results_complete.csv"), 
+          row.names = FALSE)
+
+write.csv(ko_results_df, 
+          file = file.path(output_dir, "SARM1KO_NRG_treatment_results_complete.csv"), 
+          row.names = FALSE)
+
+# Also create simplified versions with just the three columns you requested
+wt_simple <- wt_results_df[, c("GeneSymbol", "log2FoldChange", "padj")]
+ko_simple <- ko_results_df[, c("GeneSymbol", "log2FoldChange", "padj")]
+
+write.csv(wt_simple, 
+          file = file.path(output_dir, "WT_NRG_treatment_results_simple.csv"), 
+          row.names = FALSE)
+
+write.csv(ko_simple, 
+          file = file.path(output_dir, "SARM1KO_NRG_treatment_results_simple.csv"), 
+          row.names = FALSE)
+
+# Read the data
+pseudobulk <- read.csv(pseudobulk_path)
+bulk_wt <- read.csv(file.path(output_dir, "WT_NRG_treatment_results_simple.csv"))
+bulk_sarm <- read.csv(file.path(output_dir, "SARM1KO_NRG_treatment_results_simple.csv"))
+
+# Process WT data
+wt_pseudo <- pseudobulk %>%
+  filter(group1 == "Sham-for-1dpi-WT",
+         group2 == "1dpi-WT",
+         gene %in% genes_of_interest) %>%
+  dplyr::select(gene, avg_logFC, p_val_adj)
+
+wt_bulk <- bulk_wt %>%
+  filter(GeneSymbol %in% genes_of_interest) %>%
+  dplyr::select(GeneSymbol, log2FoldChange, padj)
+
+wt_combined <- wt_pseudo %>%
+  inner_join(wt_bulk, by = c("gene" = "GeneSymbol")) %>%
+  mutate(
+    quadrant = case_when(
+      avg_logFC >= 0 & log2FoldChange >= 0 ~ "Q1",
+      avg_logFC < 0 & log2FoldChange >= 0 ~ "Q2",
+      avg_logFC < 0 & log2FoldChange < 0 ~ "Q3",
+      avg_logFC >= 0 & log2FoldChange < 0 ~ "Q4"
+    ),
+    dataset = "WT"
+  )
+head(wt_combined)
+
+# Process Sarm1KO data
+sarm_pseudo <- pseudobulk %>%
+  filter(group1 == "Sham-for-1dpi-Sarm1-KO",
+         group2 == "1dpi-Sarm1-KO",
+         gene %in% genes_of_interest) %>%
+  dplyr::select(gene, avg_logFC, p_val_adj)
+
+sarm_bulk <- bulk_sarm %>%
+  filter(GeneSymbol %in% genes_of_interest) %>%
+  dplyr::select(GeneSymbol, log2FoldChange, padj)
+
+sarm_combined <- sarm_pseudo %>%
+  inner_join(sarm_bulk, by = c("gene" = "GeneSymbol")) %>%
+  mutate(
+    quadrant = case_when(
+      avg_logFC >= 0 & log2FoldChange >= 0 ~ "Q1",
+      avg_logFC < 0 & log2FoldChange >= 0 ~ "Q2",
+      avg_logFC < 0 & log2FoldChange < 0 ~ "Q3",
+      avg_logFC >= 0 & log2FoldChange < 0 ~ "Q4"
+    ),
+    dataset = "Sarm1KO"
+  )
+
+
+# Process WT - all genes
+wt_pseudo_all <- pseudobulk %>%
+  filter(group1 == "Sham-for-1dpi-WT",
+         group2 == "1dpi-WT") %>%
+  dplyr::select(gene, avg_logFC, p_val_adj)
+
+wt_bulk_all <- bulk_wt %>%
+  dplyr::select(GeneSymbol, log2FoldChange, padj)
+
+# Inner join keeps only genes present in both datasets
+wt_all_combined <- wt_pseudo_all %>%
+  inner_join(wt_bulk_all, by = c("gene" = "GeneSymbol")) %>%
+  filter(!is.na(avg_logFC) & !is.na(log2FoldChange)) %>%
+  mutate(
+    quadrant = case_when(
+      avg_logFC >= 0 & log2FoldChange >= 0 ~ "Q1",
+      avg_logFC < 0 & log2FoldChange >= 0 ~ "Q2",
+      avg_logFC < 0 & log2FoldChange < 0 ~ "Q3",
+      avg_logFC >= 0 & log2FoldChange < 0 ~ "Q4"
+    ),
+    dataset = "WT"
+  )
+
+# Process Sarm1KO - all genes
+sarm_pseudo_all <- pseudobulk %>%
+  filter(group1 == "Sham-for-1dpi-Sarm1-KO",
+         group2 == "1dpi-Sarm1-KO") %>%
+  dplyr::select(gene, avg_logFC, p_val_adj)
+
+sarm_bulk_all <- bulk_sarm %>%
+  dplyr::select(GeneSymbol, log2FoldChange, padj)
+
+sarm_all_combined <- sarm_pseudo_all %>%
+  inner_join(sarm_bulk_all, by = c("gene" = "GeneSymbol")) %>%
+  filter(!is.na(avg_logFC) & !is.na(log2FoldChange)) %>%
+  mutate(
+    quadrant = case_when(
+      avg_logFC >= 0 & log2FoldChange >= 0 ~ "Q1",
+      avg_logFC < 0 & log2FoldChange >= 0 ~ "Q2",
+      avg_logFC < 0 & log2FoldChange < 0 ~ "Q3",
+      avg_logFC >= 0 & log2FoldChange < 0 ~ "Q4"
+    ),
+    dataset = "Sarm1KO"
+  )
+
+# ============================================================================
+#Concordance in top N genes
+# Shows overlap in top genes between methods
+# ============================================================================
+
+analyze_top_gene_overlap <- function(data, thresholds = c(100, 500, 1000, 5000, 10000)) {
+  results <- data.frame()
+  
+  for (n in thresholds) {
+    pseudo_top <- data %>%
+      arrange(desc(abs(avg_logFC))) %>%
+      head(n) %>%
+      pull(gene)
+    
+    bulk_top <- data %>%
+      arrange(desc(abs(log2FoldChange))) %>%
+      head(n) %>%
+      pull(gene)
+    
+    overlap <- length(intersect(pseudo_top, bulk_top))
+    jaccard <- overlap / length(union(pseudo_top, bulk_top))
+    percent_overlap <- (overlap / n) * 100
+    
+    results <- rbind(results, data.frame(
+      n_genes = n,
+      overlap = overlap,
+      jaccard_index = jaccard,
+      percent_overlap = percent_overlap
+    ))
+  }
+  
+  return(results)
+}
+
+overlap_wt <- analyze_top_gene_overlap(wt_all_combined)
+overlap_sarm <- analyze_top_gene_overlap(sarm_all_combined)
+
+cat("\n=== TOP GENE OVERLAP ANALYSIS ===\n")
+cat("\nWT:\n")
+print(overlap_wt)
+cat("\nSarm1KO:\n")
+print(overlap_sarm)
+
+# Visualize overlap
+plot_overlap <- function(overlap_data, title) {
+  p <- ggplot(overlap_data, aes(x = n_genes, y = percent_overlap)) +
+    geom_line(color = "blue", size = 1) +
+    geom_point(color = "blue", size = 3) +
+    geom_text(aes(label = sprintf("%.1f%%", percent_overlap)), 
+              vjust = -0.5, size = 3) +
+    scale_x_continuous(trans = "log10", breaks = overlap_data$n_genes) +
+    labs(title = title,
+         x = "Number of Top Genes",
+         y = "% Overlap Between Methods") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  return(p)
+}
+
+p_overlap_wt <- plot_overlap(overlap_wt, "WT - Top Gene Overlap")
+p_overlap_sarm <- plot_overlap(overlap_sarm, "Sarm1KO - Top Gene Overlap")
+
+#Supplemental Figure 7E
+grid.arrange(p_overlap_wt, p_overlap_sarm, ncol = 2)

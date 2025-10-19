@@ -1,4 +1,20 @@
-#load the libraries
+################################################################################
+# Seurat Integration and Metadata Assignment
+# 
+# Description: Integration of multiple single-cell RNA-seq batches using CCA
+# integration, with comprehensive metadata assignment for downstream analysis
+#
+# Requirements: 
+# - Pre-processed Seurat objects from previous analysis steps:
+#   * Sham.singletB1, Sham.singletB2, Sham.singletB3, Sham.singletB4
+#   * Injury.singletB1, Injury.singletB2, Injury.singletB3, Injury.singletB4
+#   * Sham_for_TwoHpi_singlet.clean, Two_hpi_hashtag_singlets.clean
+#   * Naive.singlet
+# - R packages: Seurat, dplyr, tidyverse, ggplot2, pheatmap, 
+#   RColorBrewer, SeuratObject, plyr
+################################################################################
+
+# Load required libraries
 library(Seurat)
 library(dplyr)
 library(tidyverse)
@@ -7,16 +23,32 @@ library(pheatmap)
 library(RColorBrewer)
 library(SeuratObject)
 
-#Read in and merge all sham data for 1 dpi
-Sham.combined_1dpi <- merge(Sham.singletB1, y = c(Sham.singletB2, Sham.singletB3, Sham.singletB4), 
+################################################################################
+# USER-DEFINED PATHS - MODIFY THESE FOR YOUR SYSTEM
+################################################################################
+
+# Output path for saving integrated Seurat object for future reading in
+output_rds_path <- "Data_Files/Files/Cond.combineds_integrated.rds"
+
+################################################################################
+# MERGE ALL SAMPLES
+################################################################################
+
+cat("=== Merging All Samples ===\n")
+
+# Read in and merge all sham data for 1 dpi
+Sham.combined_1dpi <- merge(Sham.singletB1, 
+                            y = c(Sham.singletB2, Sham.singletB3, Sham.singletB4), 
                             add.cell.ids = c("Sham B1", "Sham B2", "Sham B3", "Sham B4"), 
                             project = "Sham")
-#Read in and merge all 1dpi data
-Injury.combined_1dpi <- merge(Injury.singletB1, y = c(Injury.singletB2, Injury.singletB3, Injury.singletB4),
-                              add.cell.ids = c("Injury B1","Injury B2","Injury B4", "Injury B5"), 
+
+# Read in and merge all 1dpi data
+Injury.combined_1dpi <- merge(Injury.singletB1, 
+                              y = c(Injury.singletB2, Injury.singletB3, Injury.singletB4),
+                              add.cell.ids = c("Injury B1", "Injury B2", "Injury B4", "Injury B5"), 
                               project = "1dpi")
 
-#Read in the Naive data and the 2hours post injury data
+# Merge all conditions: Sham 1dpi, Injury 1dpi, Sham 2hpi, Injury 2hpi, and Naive
 Cond.combined <- merge(x = Sham.combined_1dpi,
                        y = c(Injury.combined_1dpi,
                              Sham_for_TwoHpi_singlet.clean,
@@ -29,83 +61,137 @@ Cond.combined <- merge(x = Sham.combined_1dpi,
                                         "Naive"),
                        project = "Combined")
 
-#Count total number of cells present
-length(unique(WhichCells(Cond.combined))) #60802
+# Count total number of cells present
+cat("Total cells after merging:", length(unique(WhichCells(Cond.combined))), "\n")
 
-#Now select only WT and Sarm1KOs (other data is present here and not needed for this project)
-unique(Cond.combined@meta.data$MULTI_ID)
-Idents(Cond.combined)<- "MULTI_ID"
+################################################################################
+# FILTER OUT NON-WT/SARM1-KO SAMPLES
+################################################################################
+
+cat("\n=== Filtering Samples ===\n")
+
+# Now select only WT and Sarm1KOs (other data is present but not needed for this project)
+cat("Unique MULTI_IDs before filtering:\n")
+print(unique(Cond.combined@meta.data$MULTI_ID))
+
+Idents(Cond.combined) <- "MULTI_ID"
 Cond.combined <- subset(Cond.combined, 
                         subset = MULTI_ID %in% 
                           unique(MULTI_ID)[!grepl("DR6", unique(MULTI_ID))])
-#Count total number of cells
-length(unique(WhichCells(Cond.combined)))#verify that have less cells #45176
-unique(Cond.combined@meta.data$MULTI_ID)#verify that no DR6 data is here
 
+# Count total number of cells after filtering
+cat("Total cells after filtering:", length(unique(WhichCells(Cond.combined))), "\n")
+cat("Unique MULTI_IDs after filtering:\n")
+print(unique(Cond.combined@meta.data$MULTI_ID))
+
+################################################################################
+# PREPARE FOR INTEGRATION
+################################################################################
+
+cat("\n=== Preparing for Integration ===\n")
 
 # Create a unified layer
 DefaultAssay(Cond.combined) <- "RNA"
 Cond.combined <- JoinLayers(Cond.combined)
 
 # Verify the names of each 10x lane
-unique(Cond.combined@meta.data$orig.ident)
+cat("Unique orig.ident values:\n")
+print(unique(Cond.combined@meta.data$orig.ident))
 
-######
+# Split layers by orig.ident for integration
 DefaultAssay(Cond.combined) <- "RNA"
-
 Cond.combined[["RNA"]] <- split(Cond.combined[["RNA"]], f = Cond.combined$orig.ident)
-Cond.combined
+cat("Seurat object structure:\n")
+print(Cond.combined)
+
+################################################################################
+# NORMALIZATION, FEATURE SELECTION, AND SCALING
+################################################################################
+
+cat("\n=== Normalizing, Finding Variable Features, and Scaling ===\n")
+
 Cond.combined <- NormalizeData(Cond.combined)
 Cond.combined <- FindVariableFeatures(Cond.combined)
 Cond.combined <- ScaleData(Cond.combined)
 Cond.combined <- RunPCA(Cond.combined)
 
+################################################################################
+# CCA INTEGRATION
+################################################################################
+
+cat("\n=== Running CCA Integration ===\n")
+
 # CCA integration
-Cond.combineds_integrated <- IntegrateLayers(object = Cond.combined, method = CCAIntegration, 
-                                             orig.reduction = "pca", new.reduction = "integrated.cca",
-                                             verbose = FALSE,k.weight=30)
+Cond.combineds_integrated <- IntegrateLayers(object = Cond.combined, 
+                                             method = CCAIntegration, 
+                                             orig.reduction = "pca", 
+                                             new.reduction = "integrated.cca",
+                                             verbose = FALSE, 
+                                             k.weight = 30)
 
-# re-join layers after integration
+# Re-join layers after integration
 Cond.combineds_integrated[["RNA"]] <- JoinLayers(Cond.combineds_integrated[["RNA"]])
-ElbowPlot(Cond.combineds_integrated, n=50)
 
-x<-25
-Cond.combineds_integrated <- FindNeighbors(Cond.combineds_integrated, reduction = "integrated.cca", dims = 1:x)
-Cond.combineds_integrated <- FindClusters(Cond.combineds_integrated, resolution = 0.5)#0.4
-Cond.combineds_integrated <- RunUMAP(Cond.combineds_integrated, dims = 1:x, reduction = "integrated.cca")
+# Visualize elbow plot to determine optimal dimensions
+ElbowPlot(Cond.combineds_integrated, n = 50)
 
+################################################################################
+# CLUSTERING AND UMAP
+################################################################################
 
-##properly name each sample, current names are difficult to understand
-##Do not change this as only the authors know the nomenclature
-unique(Cond.combineds_integrated@meta.data$MULTI_ID)
+cat("\n=== Clustering and UMAP ===\n")
 
-#properly name each sample
-mapping <- c("Sham-WT-Male"= 'Sham-WT-Male',
-             'Sham-Sarm1KO-male'="Sham-Sarm1-KO-Male",
-             "Sham-Sarm1KO-Male"="Sham-Sarm1-KO-Male",
-             "Sham-Sarm-Male" ="Sham-Sarm1-KO-Male",
+# Set number of dimensions to use
+x <- 25
+
+Cond.combineds_integrated <- FindNeighbors(Cond.combineds_integrated, 
+                                           reduction = "integrated.cca", 
+                                           dims = 1:x)
+Cond.combineds_integrated <- FindClusters(Cond.combineds_integrated, 
+                                          resolution = 0.5)
+Cond.combineds_integrated <- RunUMAP(Cond.combineds_integrated, 
+                                     dims = 1:x, 
+                                     reduction = "integrated.cca")
+
+################################################################################
+# METADATA ASSIGNMENT - HASHTAG NAMES
+################################################################################
+
+cat("\n=== Assigning Metadata: Hashtag Names ===\n")
+
+# NOTE: Do not change this mapping as only the authors know the nomenclature
+# Properly name each sample (current names are difficult to understand)
+
+cat("Unique MULTI_IDs:\n")
+print(unique(Cond.combineds_integrated@meta.data$MULTI_ID))
+
+# Mapping for hashtag names
+mapping <- c("Sham-WT-Male" = 'Sham-WT-Male',
+             'Sham-Sarm1KO-male' = "Sham-Sarm1-KO-Male",
+             "Sham-Sarm1KO-Male" = "Sham-Sarm1-KO-Male",
+             "Sham-Sarm-Male" = "Sham-Sarm1-KO-Male",
              "Sham-WT-Female" = 'Sham-WT-Female',
-             "Sham-Sarm-Female"= "Sham-Sarm1-KO-Female",
+             "Sham-Sarm-Female" = "Sham-Sarm1-KO-Female",
              "Sham-WT-male" = "Sham-WT-Male",
              "Sham-Sarm1KO-male" = "Sham-Sarm1-KO-Male", 
              "Sham-WT-female" = "Sham-WT-Female",
              "Sham-Sarm1KO-female" = "Sham-Sarm1-KO-Female",
              "Female-10-min" = "Naive-Female",
              "Male-10-min" = "Naive-Male",
-             "Male-30-min"='Naive-Male',
-             "Female-30-min"="Naive-Female",
+             "Male-30-min" = 'Naive-Male',
+             "Female-30-min" = "Naive-Female",
              "Sham-Sarm1KO-Male" = "Sham-Sarm1-KO-Male",
-             "Sham-Sarm1KO-Female"="Sham-Sarm1-KO-Female",
+             "Sham-Sarm1KO-Female" = "Sham-Sarm1-KO-Female",
              "Injury-Sarm-Female" = "1dpi-Sarm1-KO-Female",
              "Injury-Sarm-Male" = "1dpi-Sarm1-KO-Male",
              "Injury-WT-Female" = "1dpi-WT-Female",
-             "Injury-WT-Male"= "1dpi-WT-Male",
+             "Injury-WT-Male" = "1dpi-WT-Male",
              "Injury-Sarm1KO-Female" = "1dpi-Sarm1-KO-Female",
              "Injury-Sarm1KO-Male" = "1dpi-Sarm1-KO-Male",
              "3dpi-Sarm1KO-Male-Batch3" = "3dpi-Sarm1-KO-Male",
              "Sham-WT-Female-Batch3" = "Sham-for-3dpi-WT-Female",
              "3dpi-WT-Male-Batch3" = "3dpi-WT-Male",
-             "3dpi-Sarm1KO-Female-Batch3" ="3dpi-Sarm1-KO-Female",
+             "3dpi-Sarm1KO-Female-Batch3" = "3dpi-Sarm1-KO-Female",
              "Sham-WT-Male-Batch3" = "Sham-for-3dpi-WT-Male",
              "3dpi-WT-Female-Female-Batch3" = "3dpi-WT-Female",
              "Sham-male-for-2hpi-R3" = "Sham-for-2hpi-WT-Male",
@@ -114,121 +200,144 @@ mapping <- c("Sham-WT-Male"= 'Sham-WT-Male',
              "Sham-female-for-2hpi-R1" = "Sham-for-2hpi-WT-Female",
              "2hpi-male-R4" = "2hpi-WT-Male",
              "2hpi-female-R2" = "2hpi-WT-Female",
-             "2hpi-female-R1" ="2hpi-WT-Female",
+             "2hpi-female-R1" = "2hpi-WT-Female",
              "2hpi-male-R3" = "2hpi-WT-Male",
-             "Injury-Sarm1KO-female"="1dpi-Sarm1-KO-Female",
-             "Injury-Sarm1KO-male"="1dpi-Sarm1-KO-Male",
-             "Injury-WT-female"="1dpi-WT-Female",
-             "Injury-WT-male"="1dpi-WT-Male")
+             "Injury-Sarm1KO-female" = "1dpi-Sarm1-KO-Female",
+             "Injury-Sarm1KO-male" = "1dpi-Sarm1-KO-Male",
+             "Injury-WT-female" = "1dpi-WT-Female",
+             "Injury-WT-male" = "1dpi-WT-Male")
 
 Cond.combineds_integrated@meta.data$Hashtags <- mapping[Cond.combineds_integrated@meta.data$MULTI_ID]
-unique(Cond.combineds_integrated@meta.data$Hashtags)
-tail(x = Cond.combineds_integrated[[]])
 
+cat("Unique Hashtag values:\n")
+print(unique(Cond.combineds_integrated@meta.data$Hashtags))
 
-##properly name each sample, current names are difficult to understand
-##Do not change this as only the authors know the nomenclature
-##add a new column "label" that assigns the name of sample
-unique(Cond.combineds_integrated@meta.data$Hashtags)
-mapping<-c("Sham-WT-Male"="Sham-for-1dpi-WT",
-           "Sham-Sarm1-KO-Male"="Sham-for-1dpi-Sarm1-KO",
-           "Sham-WT-Female"="Sham-for-1dpi-WT",
-           "Sham-Sarm1-KO-Female"="Sham-for-1dpi-Sarm1-KO",
-           "1dpi-Sarm1-KO-Female"="1dpi-Sarm1-KO",
-           "1dpi-Sarm1-KO-Male"="1dpi-Sarm1-KO",
-           "1dpi-WT-Female"="1dpi-WT",
-           "1dpi-WT-Male"="1dpi-WT",
-           "3dpi-Sarm1-KO-Male"="3dpi-Sarm1-KO",
-           "Sham-for-3dpi-WT-Female"="Sham-for-3dpi-WT",
-           "3dpi-WT-Male"="3dpi-WT",
-           "3dpi-Sarm1-KO-Female"="3dpi-Sarm1-KO",
-           "Sham-for-3dpi-WT-Male"="Sham-for-3dpi-WT",
-           "3dpi-WT-Female"="3dpi-WT",
-           "Sham-for-2hpi-WT-Male"="Sham-for-2hpi-WT",
-           "Sham-for-2hpi-WT-Female"="Sham-for-2hpi-WT",
-           "2hpi-WT-Male"="2hpi-WT",
-           "2hpi-WT-Female"="2hpi-WT",
-           "Naive-Male" = "Naive",
-           "Naive-Female" = "Naive")
+################################################################################
+# METADATA ASSIGNMENT - LABEL (CONDITION + GENOTYPE)
+################################################################################
+
+cat("\n=== Assigning Metadata: Label ===\n")
+
+# NOTE: Do not change this mapping as only the authors know the nomenclature
+# Add a new column "label" that assigns the name of sample
+
+mapping <- c("Sham-WT-Male" = "Sham-for-1dpi-WT",
+             "Sham-Sarm1-KO-Male" = "Sham-for-1dpi-Sarm1-KO",
+             "Sham-WT-Female" = "Sham-for-1dpi-WT",
+             "Sham-Sarm1-KO-Female" = "Sham-for-1dpi-Sarm1-KO",
+             "1dpi-Sarm1-KO-Female" = "1dpi-Sarm1-KO",
+             "1dpi-Sarm1-KO-Male" = "1dpi-Sarm1-KO",
+             "1dpi-WT-Female" = "1dpi-WT",
+             "1dpi-WT-Male" = "1dpi-WT",
+             "3dpi-Sarm1-KO-Male" = "3dpi-Sarm1-KO",
+             "Sham-for-3dpi-WT-Female" = "Sham-for-3dpi-WT",
+             "3dpi-WT-Male" = "3dpi-WT",
+             "3dpi-Sarm1-KO-Female" = "3dpi-Sarm1-KO",
+             "Sham-for-3dpi-WT-Male" = "Sham-for-3dpi-WT",
+             "3dpi-WT-Female" = "3dpi-WT",
+             "Sham-for-2hpi-WT-Male" = "Sham-for-2hpi-WT",
+             "Sham-for-2hpi-WT-Female" = "Sham-for-2hpi-WT",
+             "2hpi-WT-Male" = "2hpi-WT",
+             "2hpi-WT-Female" = "2hpi-WT",
+             "Naive-Male" = "Naive",
+             "Naive-Female" = "Naive")
+
 Cond.combineds_integrated@meta.data$label <- mapping[Cond.combineds_integrated@meta.data$Hashtags]
-unique(Cond.combineds_integrated@meta.data$label)
-tail(x = Cond.combineds_integrated[[]])
 
-##properly name each sample, current names are difficult to understand
-##Do not change this as only the authors know the nomenclature
-####Shams and 2hpi, 1dpi, 3dpi information
-unique(Cond.combineds_integrated@meta.data$Hashtags)
-mapping<-c("Sham-WT-Male"="Sham",
-           "Sham-Sarm1-KO-Male"="Sham",
-           "Sham-WT-Female"="Sham",
-           "Sham-Sarm1-KO-Female"="Sham",
-           "1dpi-Sarm1-KO-Female"="1dpi",
-           "1dpi-Sarm1-KO-Male"="1dpi",
-           "1dpi-WT-Female"="1dpi",
-           "1dpi-WT-Male"="1dpi",
-           "3dpi-Sarm1-KO-Male"="3dpi",
-           "Sham-for-3dpi-WT-Female"="Sham",
-           "3dpi-WT-Male"="3dpi",
-           "3dpi-Sarm1-KO-Female"="3dpi",
-           "Sham-for-3dpi-WT-Male"="Sham",
-           "3dpi-WT-Female"="3dpi",
-           "Sham-for-2hpi-WT-Male"="Sham",
-           "Sham-for-2hpi-WT-Female"="Sham",
-           "2hpi-WT-Male"="2hpi",
-           "2hpi-WT-Female"="2hpi",
-           "Naive-Male" = "Naive",
-           "Naive-Female" = "Naive")
+cat("Unique Label values:\n")
+print(unique(Cond.combineds_integrated@meta.data$label))
+
+################################################################################
+# METADATA ASSIGNMENT - CONDITION (TIMEPOINT)
+################################################################################
+
+cat("\n=== Assigning Metadata: Condition ===\n")
+
+# NOTE: Do not change this mapping as only the authors know the nomenclature
+# Add condition information (Sham, Naive, 2hpi, 1dpi, 3dpi)
+
+mapping <- c("Sham-WT-Male" = "Sham",
+             "Sham-Sarm1-KO-Male" = "Sham",
+             "Sham-WT-Female" = "Sham",
+             "Sham-Sarm1-KO-Female" = "Sham",
+             "1dpi-Sarm1-KO-Female" = "1dpi",
+             "1dpi-Sarm1-KO-Male" = "1dpi",
+             "1dpi-WT-Female" = "1dpi",
+             "1dpi-WT-Male" = "1dpi",
+             "3dpi-Sarm1-KO-Male" = "3dpi",
+             "Sham-for-3dpi-WT-Female" = "Sham",
+             "3dpi-WT-Male" = "3dpi",
+             "3dpi-Sarm1-KO-Female" = "3dpi",
+             "Sham-for-3dpi-WT-Male" = "Sham",
+             "3dpi-WT-Female" = "3dpi",
+             "Sham-for-2hpi-WT-Male" = "Sham",
+             "Sham-for-2hpi-WT-Female" = "Sham",
+             "2hpi-WT-Male" = "2hpi",
+             "2hpi-WT-Female" = "2hpi",
+             "Naive-Male" = "Naive",
+             "Naive-Female" = "Naive")
+
 Cond.combineds_integrated@meta.data$condition <- mapping[Cond.combineds_integrated@meta.data$Hashtags]
-unique(Cond.combineds_integrated@meta.data$condition)
-# Check the number of cells for each condition
-#length(WhichCells(Cond.combineds_integrated, expression = condition == "Sham"))#19115
-#length(WhichCells(Cond.combineds_integrated, expression = condition == "Naive"))#9123
-#length(WhichCells(Cond.combineds_integrated, expression = condition == "1dpi"))#14678
-#length(WhichCells(Cond.combineds_integrated, expression = condition == "2hpi"))#2260
-#length(WhichCells(Cond.combineds_integrated))
+
+cat("Unique Condition values:\n")
+print(unique(Cond.combineds_integrated@meta.data$condition))
 
 # Reorder the levels so that order is logical (progression of injury)
 Cond.combineds_integrated$condition <- factor(Cond.combineds_integrated$condition, 
-                                              levels = c("Naive","Sham", "2hpi",
-                                                         "1dpi"))
+                                              levels = c("Naive", "Sham", "2hpi", "1dpi"))
 
-##properly name each sample, current names are difficult to understand
-##Do not change this as only the authors know the nomenclature
-####add batch information
-#add a new column batch.orig that assigns what batch a certain sample was from
-unique(Cond.combineds_integrated@meta.data$orig.ident)
+################################################################################
+# METADATA ASSIGNMENT - BATCH
+################################################################################
+
+cat("\n=== Assigning Metadata: Batch ===\n")
+
+# NOTE: Do not change this mapping as only the authors know the nomenclature
+# Add a new column batch.orig that assigns what batch a certain sample was from
+
+cat("Unique orig.ident values:\n")
+print(unique(Cond.combineds_integrated@meta.data$orig.ident))
 
 current.idsB <- c('Sham.singletB1', 'Sham.singletB2', 'Sham.singletB3', 'Sham.singletB4',
-                  'Injury.singletB1', 'Injury.singletB2', 'Injury.singletB3','Injury.singlet.B4',
-                  "Sham_for2hpi.singlet", "2hpi.singlet","Naive")
-new.idsB <- c('Batch1','Batch2',"Batch3",'Batch4', 
-              "Batch1","Batch2","Batch3",'Batch4',
-              "Batch7","Batch7","Batch5")
-batch.orig <- plyr::mapvalues(x = Cond.combineds_integrated@meta.data$orig.ident, from = current.idsB, to = new.idsB)
+                  'Injury.singletB1', 'Injury.singletB2', 'Injury.singletB3', 'Injury.singlet.B4',
+                  "Sham_for2hpi.singlet", "2hpi.singlet", "Naive")
 
+new.idsB <- c('Batch1', 'Batch2', "Batch3", 'Batch4', 
+              "Batch1", "Batch2", "Batch3", 'Batch4',
+              "Batch7", "Batch7", "Batch5")
+
+batch.orig <- plyr::mapvalues(x = Cond.combineds_integrated@meta.data$orig.ident, 
+                              from = current.idsB, 
+                              to = new.idsB)
 
 names(batch.orig) <- colnames(x = Cond.combineds_integrated)
-Cond.combineds_integrated <- AddMetaData(
-  object = Cond.combineds_integrated,
-  metadata = batch.orig,
-  col.name = 'batch.orig'
-)
-unique(Cond.combineds_integrated@meta.data$batch.orig)
+Cond.combineds_integrated <- AddMetaData(object = Cond.combineds_integrated,
+                                         metadata = batch.orig,
+                                         col.name = 'batch.orig')
 
+cat("Unique Batch values:\n")
+print(unique(Cond.combineds_integrated@meta.data$batch.orig))
 
-##properly name each sample, current names are difficult to understand
-##Do not change this as only the authors know the nomenclature
+################################################################################
+# METADATA ASSIGNMENT - REPLICATE
+################################################################################
 
-####Add replicate information without splitting by sex
-unique(Cond.combineds_integrated@meta.data$MULTI_ID)
-unique(Cond.combineds_integrated@meta.data$batch.orig)
+cat("\n=== Assigning Metadata: Replicate ===\n")
+
+# NOTE: Do not change this mapping as only the authors know the nomenclature
+# Add replicate information without splitting by sex
+
 # Create new column by pasting MULTI_ID and batch.orig together
 Cond.combineds_integrated@meta.data$HTO_classification_batch.orig <- paste(
   Cond.combineds_integrated@meta.data$MULTI_ID,
   Cond.combineds_integrated@meta.data$batch.orig,
-  sep = "_")
-unique(Cond.combineds_integrated@meta.data$HTO_classification_batch.orig)
+  sep = "_"
+)
 
+cat("Unique HTO_classification_batch.orig values:\n")
+print(unique(Cond.combineds_integrated@meta.data$HTO_classification_batch.orig))
+
+# Replicate mapping
 mapping <- c(
   "Sham-WT-male_Batch1" = "Rep1",
   "Sham-WT-female_Batch1" = "Rep2", 
@@ -239,62 +348,70 @@ mapping <- c(
   "Sham-Sarm1KO-male_Batch2" = "Rep4",
   "Sham-Sarm1KO-female_Batch2" = "Rep3",
   
-  "Sham-WT-Male_Batch1"="Rep1",
-  "Sham-WT-Female_Batch1"="Rep2",
-  "Sham-Sarm-Male_Batch1"="Rep1",
-  "Sham-Sarm-Female_Batch1"="Rep2",
-  "Sham-Sarm-Female_Batch2"="Rep3",
-  "Sham-Sarm-Male_Batch2"="Rep4",
-  "Sham-WT-Male_Batch2"="Rep3",
-  "Sham-WT-Female_Batch2"="Rep4",
-  "Sham-Sarm1KO-Male_Batch3"="Rep5",
-  "Sham-WT-Female_Batch3"="Rep5",
-  "Sham-WT-Male_Batch3"="Rep6",
-  "Sham-Sarm1KO-Female_Batch3"="Rep6",
-  "Sham-Sarm1KO-Female_Batch4"="Rep7",
-  "Sham-WT-Male_Batch4"="Rep7",
-  "Sham-WT-Female_Batch4"="Rep8",
+  "Sham-WT-Male_Batch1" = "Rep1",
+  "Sham-WT-Female_Batch1" = "Rep2",
+  "Sham-Sarm-Male_Batch1" = "Rep1",
+  "Sham-Sarm-Female_Batch1" = "Rep2",
+  "Sham-Sarm-Female_Batch2" = "Rep3",
+  "Sham-Sarm-Male_Batch2" = "Rep4",
+  "Sham-WT-Male_Batch2" = "Rep3",
+  "Sham-WT-Female_Batch2" = "Rep4",
+  "Sham-Sarm1KO-Male_Batch3" = "Rep5",
+  "Sham-WT-Female_Batch3" = "Rep5",
+  "Sham-WT-Male_Batch3" = "Rep6",
+  "Sham-Sarm1KO-Female_Batch3" = "Rep6",
+  "Sham-Sarm1KO-Female_Batch4" = "Rep7",
+  "Sham-WT-Male_Batch4" = "Rep7",
+  "Sham-WT-Female_Batch4" = "Rep8",
   "Sham-Sarm1KO-Male_Batch4" = "Rep8",  
   
   "Injury-WT-female_Batch1" = "Rep1",       
   "Injury-WT-male_Batch1" = "Rep2",          
   "Injury-Sarm1KO-female_Batch1" = "Rep1", 
   "Injury-Sarm1KO-male_Batch1" = "Rep2",    
-  "Injury-WT-female_Batch2"="Rep3",
-  "Injury-Sarm1KO-female_Batch2"="Rep3",
-  "Injury-Sarm1KO-male_Batch2"="Rep4",
-  "Injury-WT-male_Batch2"="Rep4",
-  "Injury-WT-Male_Batch3"="Rep5",
-  "Injury-Sarm1KO-Female_Batch3"="Rep5",
-  "Injury-Sarm1KO-Male_Batch3"="Rep6",
-  "Injury-WT-Female_Batch3"="Rep6",
-  "Injury-Sarm1KO-Male_Batch4"="Rep7",
-  "Injury-WT-Male_Batch4"="Rep7",
-  "Injury-Sarm1KO-Female_Batch4"="Rep8",
-  "Injury-WT-Female_Batch4"="Rep8",
+  "Injury-WT-female_Batch2" = "Rep3",
+  "Injury-Sarm1KO-female_Batch2" = "Rep3",
+  "Injury-Sarm1KO-male_Batch2" = "Rep4",
+  "Injury-WT-male_Batch2" = "Rep4",
+  "Injury-WT-Male_Batch3" = "Rep5",
+  "Injury-Sarm1KO-Female_Batch3" = "Rep5",
+  "Injury-Sarm1KO-Male_Batch3" = "Rep6",
+  "Injury-WT-Female_Batch3" = "Rep6",
+  "Injury-Sarm1KO-Male_Batch4" = "Rep7",
+  "Injury-WT-Male_Batch4" = "Rep7",
+  "Injury-Sarm1KO-Female_Batch4" = "Rep8",
+  "Injury-WT-Female_Batch4" = "Rep8",
   
+  "Sham-male-for-2hpi-R3_Batch7" = "Rep1",
+  "Sham-male-for-2hpi-R4_Batch7" = "Rep2",
+  "Sham-female-for-2-hpi-R2_Batch7" = "Rep3",
+  "Sham-female-for-2hpi-R1_Batch7" = "Rep4",
+  "2hpi-female-R1_Batch7" = "Rep1",
+  "2hpi-male-R4_Batch7" = "Rep2",
+  "2hpi-female-R2_Batch7" = "Rep3",
+  "2hpi-male-R3_Batch7" = "Rep4",
   
-  "Sham-male-for-2hpi-R3_Batch7"="Rep1",
-  "Sham-male-for-2hpi-R4_Batch7"="Rep2",
-  "Sham-female-for-2-hpi-R2_Batch7"="Rep3",
-  "Sham-female-for-2hpi-R1_Batch7"="Rep4",
-  "2hpi-female-R1_Batch7"="Rep1",
-  "2hpi-male-R4_Batch7"="Rep2",
-  "2hpi-female-R2_Batch7"="Rep3",
-  "2hpi-male-R3_Batch7"="Rep4",
-  
-  "Male-30-min_Batch5"="Rep1",
-  "Male-10-min_Batch5"="Rep2",
-  "Female-10-min_Batch5"="Rep3",
-  "Female-30-min_Batch5"="Rep4"
-  
+  "Male-30-min_Batch5" = "Rep1",
+  "Male-10-min_Batch5" = "Rep2",
+  "Female-10-min_Batch5" = "Rep3",
+  "Female-30-min_Batch5" = "Rep4"
 )
 
-Cond.combineds_integrated@meta.data$replicate<- mapping[Cond.combineds_integrated@meta.data$HTO_classification_batch.orig]
-unique(Cond.combineds_integrated@meta.data$replicate)
+Cond.combineds_integrated@meta.data$replicate <- mapping[Cond.combineds_integrated@meta.data$HTO_classification_batch.orig]
 
+cat("Unique Replicate values:\n")
+print(unique(Cond.combineds_integrated@meta.data$replicate))
 
-#Save the Seurat file so you do not have to rerun all the lines of code every time
-#saveRDS(Cond.combineds_integrated, "Data_Files/Files/Cond.combineds_integrated.rds")
+################################################################################
+# SAVE INTEGRATED OBJECT
+################################################################################
 
+cat("\n=== Saving Integrated Seurat Object ===\n")
 
+# Save the Seurat file so you do not have to rerun all the lines of code every time
+saveRDS(Cond.combineds_integrated, output_rds_path)
+
+cat("Integrated object saved to:", output_rds_path, "\n")
+cat("\n=== Integration Complete ===\n")
+cat("Final metadata columns:\n")
+print(tail(x = Cond.combineds_integrated[[]]))

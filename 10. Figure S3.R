@@ -1,4 +1,18 @@
-#load the libraries
+################################################################################
+# Sham Schwann Cell Analysis and Pseudobulk Differential Expression
+# 
+# Description: Analysis of sham Schwann cells including reclustering,
+# marker identification, and pseudobulk differential expression analysis
+# comparing WT vs Sarm1-KO using Libra
+#
+# Requirements: 
+# - Schwann Cells Seurat object (SchwannCells.rds)
+# - R packages: Seurat, dplyr, tidyverse, ggplot2, pheatmap, RColorBrewer,
+#   SeuratObject, edgeR, limma, Libra, plyr
+# - Note: Libra may need custom library path
+################################################################################
+
+# Load required libraries
 library(Seurat)
 library(dplyr)
 library(tidyverse)
@@ -10,9 +24,32 @@ library(edgeR)
 library(limma)
 library(Libra, lib.loc="~/R/x86_64-pc-linux-gnu-library/4.4")
 
+################################################################################
+# USER-DEFINED PATHS - MODIFY THESE FOR YOUR SYSTEM
+################################################################################
 
-#################Subset only Schwann Cell Clusters
-#SchwannCells <- readRDS("Data_Files/Files/SchwannCells.rds")
+# Path to Schwann Cells Seurat object
+schwann_cells_path <- "Data_Files/Files/SchwannCells.rds"
+
+# Path to save marker genes table
+sham_markers_output_path <- "Data_Files/Files/Table3.csv"
+
+# Path to save pseudobulk results
+pseudobulk_output_path <- "Data_Files/Files/Table4.csv"
+
+################################################################################
+# LOAD DATA
+################################################################################
+
+cat("=== Loading Schwann Cells Object ===\n")
+
+# SchwannCells <- readRDS(schwann_cells_path)
+
+################################################################################
+# FIGURE S3B: IDENTIFY SHAM SCHWANN CELLS
+################################################################################
+
+cat("\n=== Generating Figure S3B ===\n")
 
 # Create a data frame with the necessary information to identify injured SCs
 df <- data.frame(UMAP1 = SchwannCells@reductions$umap@cell.embeddings[, 1],
@@ -20,37 +57,65 @@ df <- data.frame(UMAP1 = SchwannCells@reductions$umap@cell.embeddings[, 1],
                  label = SchwannCells@meta.data$label)
 
 # Create a new column to identify Sham samples
-unique(df$label)
+cat("Unique labels:\n")
+print(unique(df$label))
+
 df$is_injury <- grepl("Sham", df$label)
 
-#Figure S3B
+# Figure S3B
 ggplot(data = df) +
   geom_point(aes(x = UMAP1, y = UMAP2, color = is_injury),
              size = 0.5) +
   labs(title = "Sham Schwann Cells") +
   scale_color_manual(values = c("FALSE" = "lightgrey", "TRUE" = "blue"),
-                     labels = c( "Injury","Sham"),
+                     labels = c("Injury", "Sham"),
                      name = "Condition") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5),
         panel.grid = element_blank(),
         axis.line = element_line())
 
+################################################################################
+# SUBSET SHAM SCHWANN CELLS
+################################################################################
+
+cat("\n=== Subsetting Sham Schwann Cells ===\n")
 
 DefaultAssay(SchwannCells) <- "RNA"
 Idents(SchwannCells) <- "label"
-length(WhichCells(SchwannCells))#12077
-unique(SchwannCells@meta.data$label)
 
-Layers(SchwannCells) #check if layers are split by batch
-SchwannCells[["RNA"]] <- split(SchwannCells[["RNA"]], f = SchwannCells$batch.orig) # Run only if the layers are not split by batch already
-Layers(SchwannCells) #check if layers are split by batch
+cat("Total Schwann cells:", length(WhichCells(SchwannCells)), "\n")
+cat("Unique labels:\n")
+print(unique(SchwannCells@meta.data$label))
 
+# Check if layers are split by batch
+cat("Current layers:\n")
+print(Layers(SchwannCells))
 
-ShamSCs<-subset(SchwannCells,cells=WhichCells(SchwannCells,idents=c("Sham-for-1dpi-WT","Sham-for-1dpi-Sarm1-KO","Sham-for-2hpi-WT")))
-length(WhichCells(ShamSCs))#4724
-unique(ShamSCs@meta.data$batch.orig)
-unique(ShamSCs@meta.data$label)
+# Run only if the layers are not split by batch already
+SchwannCells[["RNA"]] <- split(SchwannCells[["RNA"]], f = SchwannCells$batch.orig)
+
+cat("Layers after splitting:\n")
+print(Layers(SchwannCells))
+
+# Subset only sham samples
+ShamSCs <- subset(SchwannCells, 
+                  cells = WhichCells(SchwannCells, 
+                                     idents = c("Sham-for-1dpi-WT", 
+                                                "Sham-for-1dpi-Sarm1-KO", 
+                                                "Sham-for-2hpi-WT")))
+
+cat("Sham Schwann cells:", length(WhichCells(ShamSCs)), "\n")
+cat("Unique batches:\n")
+print(unique(ShamSCs@meta.data$batch.orig))
+cat("Unique labels:\n")
+print(unique(ShamSCs@meta.data$label))
+
+################################################################################
+# RECLUSTER SHAM SCHWANN CELLS
+################################################################################
+
+cat("\n=== Reclustering Sham Schwann Cells ===\n")
 
 DefaultAssay(ShamSCs) <- "RNA"
 
@@ -59,49 +124,99 @@ ShamSCs <- FindVariableFeatures(ShamSCs)
 ShamSCs <- ScaleData(ShamSCs)
 ShamSCs <- RunPCA(ShamSCs)
 
-
+# Visualize elbow plot
 ElbowPlot(ShamSCs)
+
+# Join layers for clustering
 ShamSCs[["RNA"]] <- JoinLayers(ShamSCs[["RNA"]])
 
-x<-5
+# Clustering
+x <- 5
 ShamSCs <- FindNeighbors(ShamSCs, reduction = "pca", dims = 1:x)
-ShamSCs <- FindClusters(ShamSCs, resolution = 0.2)#
+ShamSCs <- FindClusters(ShamSCs, resolution = 0.2)
 ShamSCs <- RunUMAP(ShamSCs, dims = 1:x, reduction = "pca")
 
-# Figure S3C
+################################################################################
+# FIGURE S3C: UMAP BY CLUSTER
+################################################################################
+
+cat("\n=== Generating Figure S3C ===\n")
+
 DimPlot(ShamSCs, reduction = "umap", group.by = c("seurat_clusters"))
 
-#Figure S3E
-DimPlot(ShamSCs, reduction = "umap", group.by = c("label"), cols = c("#D81B60", "#1E88E5", "#004D40"))
+################################################################################
+# FIGURE S3F: UMAP BY LABEL
+################################################################################
 
+cat("\n=== Generating Figure S3E ===\n")
 
+DimPlot(ShamSCs, reduction = "umap", group.by = c("label"), 
+        cols = c("#D81B60", "#1E88E5", "#004D40"))
 
-# Create the plot with the filtered data
-unique(ShamSCs@meta.data$label)
+################################################################################
+# FIGURE S3F-G: COMPOSITION PLOTS
+################################################################################
+
+cat("\n=== Generating Figures S3F-G ===\n")
+
+# Set label order
+cat("Unique labels in ShamSCs:\n")
+print(unique(ShamSCs@meta.data$label))
+
 ShamSCs$label <- factor(ShamSCs$label, 
                         levels = c("Sham-for-2hpi-WT", "Sham-for-1dpi-WT",
-                                   "Sham-for-1dpi-Sarm1-KO","Sham-for-3dpi-WT"))
+                                   "Sham-for-1dpi-Sarm1-KO", "Sham-for-3dpi-WT"))
+
 filtered_data <- ShamSCs@meta.data
-#Figure S3F
+
+# Figure S3F: Cluster composition by label
 ggplot(filtered_data, aes(x = seurat_clusters, fill = label)) + 
   geom_bar(position = "fill") +
   scale_fill_manual(values = c("#D81B60", "#1E88E5", "#004D40")) +
-  theme(panel.background = element_rect(fill = "white"), panel.grid = element_blank())
-#Figure S3G
+  theme(panel.background = element_rect(fill = "white"), 
+        panel.grid = element_blank())
+
+# Figure S3G: Label composition by cluster
 ggplot(filtered_data, aes(x = label, fill = seurat_clusters)) + 
   geom_bar(position = "fill") +
-  theme(panel.background = element_rect(fill = "white"), panel.grid = element_blank())
+  theme(panel.background = element_rect(fill = "white"), 
+        panel.grid = element_blank())
 
+################################################################################
+# FIND SHAM SCHWANN CELL CLUSTER MARKERS
+################################################################################
 
-#Markers and feature plots   
+cat("\n=== Finding Sham Schwann Cell Cluster Markers ===\n")
+
 DefaultAssay(ShamSCs) <- "RNA"
 ShamSCs[["RNA"]] <- JoinLayers(ShamSCs[["RNA"]])
 
 Idents(ShamSCs) <- "seurat_clusters"
 
-SC_Sham.markers <- FindAllMarkers(ShamSCs, only.pos = TRUE, min.pct = 0.25,logfc.threshold = 0.25)
-#Table 3
-#write.csv(SC_Sham.markers, file="Data_Files/Files/Table3")
+SC_Sham.markers <- FindAllMarkers(ShamSCs, 
+                                  only.pos = TRUE, 
+                                  min.pct = 0.25,
+                                  logfc.threshold = 0.25)
+
+cat("Total markers found:", nrow(SC_Sham.markers), "\n")
+
+# Save marker genes table (Table 3)
+write.csv(SC_Sham.markers, file = sham_markers_output_path, row.names = FALSE)
+cat("Sham SC markers saved to:", sham_markers_output_path, "\n")
+
+################################################################################
+# FIGURE 3SD: VIOLIN PLOTS
+################################################################################
+
+cat("\n=== Generating Figure 3SD ===\n")
+
+VlnPlot(ShamSCs, features = c("Mbp", "Mpz", "Prx", "Ncam1"), ncol = 2)
+
+################################################################################
+# FIGURE 3SE: HEATMAP OF TOP MARKERS
+################################################################################
+
+cat("\n=== Generating Figure 3SE ===\n")
 
 # Get top 5 markers per cluster
 top5_Sham_SCs <- SC_Sham.markers %>% 
@@ -114,6 +229,7 @@ cluster.averages <- AverageExpression(ShamSCs,
                                       group.by = "seurat_clusters",
                                       assays = "RNA", 
                                       features = top5_Sham_SCs$gene)
+
 # Convert the average expression data to a matrix
 expr_mat_sham_SCs <- as.matrix(cluster.averages$RNA)
 
@@ -123,10 +239,9 @@ ordered_genes_sham_SCs <- top5_Sham_SCs %>%
   pull(gene)
 
 # Reorder the matrix rows according to the ordered genes
-expr_mat_sham_SCs <- expr_mat_sham_SCs[ordered_genes_sham_SCs,]
+expr_mat_sham_SCs <- expr_mat_sham_SCs[ordered_genes_sham_SCs, ]
 
-
-#Figure 3SD
+# Generate heatmap
 pheatmap(expr_mat_sham_SCs, 
          border_color = "NA", 
          scale = "row", 
@@ -136,64 +251,88 @@ pheatmap(expr_mat_sham_SCs,
          cluster_cols = FALSE,
          main = "Sham Cluster−Average Expression of Top Genes for Each Schwann Cell Cluster")
 
+################################################################################
+# PSEUDOBULK DIFFERENTIAL EXPRESSION ANALYSIS
+################################################################################
 
-######
-#Pseudobulk analysis of genes that are different between WT and Sarm1KO Schwann Cells
+cat("\n=== Preparing for Pseudobulk Analysis ===\n")
 
 DefaultAssay(SchwannCells) <- "RNA"
 
-unique(SchwannCells@meta.data$replicate)
+cat("Unique replicates:\n")
+print(unique(SchwannCells@meta.data$replicate))
 
-#lets leave only 1dpi data
+# Leave only 1dpi data
 Idents(SchwannCells) <- "orig.ident"
-unique(SchwannCells@meta.data$orig.ident)
-SC.integrated_Pseudobulk<-subset(SchwannCells,cells=WhichCells(SchwannCells,idents=c("Sham.singletB1","Sham.singletB2",
-                                                                                     "Sham.singletB3","Sham.singletB4")))
-unique(SC.integrated_Pseudobulk@meta.data$orig.ident)
+cat("Unique orig.ident:\n")
+print(unique(SchwannCells@meta.data$orig.ident))
 
+SC.integrated_Pseudobulk <- subset(SchwannCells, 
+                                   cells = WhichCells(SchwannCells, 
+                                                      idents = c("Sham.singletB1", "Sham.singletB2",
+                                                                 "Sham.singletB3", "Sham.singletB4")))
 
+cat("Pseudobulk subset orig.ident:\n")
+print(unique(SC.integrated_Pseudobulk@meta.data$orig.ident))
 
-##add a new column "cell_type" that assigns the name of the cell type
+################################################################################
+# ADD CELL TYPE METADATA
+################################################################################
+
+cat("\n=== Adding Cell Type Metadata ===\n")
+
+# Add a new column "cell_type" that assigns the name of the cell type
 Idents(SC.integrated_Pseudobulk) <- "seurat_clusters"
-unique(SC.integrated_Pseudobulk@meta.data$seurat_clusters)
+cat("Unique clusters:\n")
+print(unique(SC.integrated_Pseudobulk@meta.data$seurat_clusters))
 
-current.cluster.idsB <- c('0', '1', '2','3', '4',"5",'6','7')
-new.cluster.idsB <- c('SC0','SC0',"SC0","SC0", "SC0",'SC0','SC0','SC0')
-cell_type <- plyr::mapvalues(x = SC.integrated_Pseudobulk@meta.data$seurat_clusters, from = current.cluster.idsB, to = new.cluster.idsB)
-tail(x = SC.integrated_Pseudobulk[[]])
-
+current.cluster.idsB <- c('0', '1', '2', '3', '4', "5", '6', '7')
+new.cluster.idsB <- c('SC0', 'SC0', "SC0", "SC0", "SC0", 'SC0', 'SC0', 'SC0')
+cell_type <- plyr::mapvalues(x = SC.integrated_Pseudobulk@meta.data$seurat_clusters, 
+                             from = current.cluster.idsB, 
+                             to = new.cluster.idsB)
 
 names(cell_type) <- colnames(x = SC.integrated_Pseudobulk)
-SC.integrated_Pseudobulk <- AddMetaData(
-  object = SC.integrated_Pseudobulk,
-  metadata = cell_type,
-  col.name = 'cell_type'
-)
-tail(x = SC.integrated_Pseudobulk[[]])
+SC.integrated_Pseudobulk <- AddMetaData(object = SC.integrated_Pseudobulk,
+                                        metadata = cell_type,
+                                        col.name = 'cell_type')
 
-#now check that all columns need to run Libra for analysis are present
-unique(SC.integrated_Pseudobulk@meta.data$replicate)
-unique(SC.integrated_Pseudobulk@meta.data$label)
-unique(SC.integrated_Pseudobulk@meta.data$cell_type)
+# Check that all columns needed to run Libra are present
+cat("Unique replicates:\n")
+print(unique(SC.integrated_Pseudobulk@meta.data$replicate))
+cat("Unique labels:\n")
+print(unique(SC.integrated_Pseudobulk@meta.data$label))
+cat("Unique cell types:\n")
+print(unique(SC.integrated_Pseudobulk@meta.data$cell_type))
 
+################################################################################
+# RUN PSEUDOBULK ANALYSIS WITH LIBRA
+################################################################################
+
+cat("\n=== Running Pseudobulk Differential Expression Analysis ===\n")
 
 SC.integrated_Pseudobulk <- JoinLayers(SC.integrated_Pseudobulk)
 
-unique(SC.integrated_Pseudobulk$label)
+cat("Unique labels in pseudobulk object:\n")
+print(unique(SC.integrated_Pseudobulk$label))
+
 # Create the comparisons dataframe
 comparisons <- data.frame(
   group1 = c("Sham-for-1dpi-WT"),
   group2 = c("Sham-for-1dpi-Sarm1-KO")
 )
 
-
-# View the valid comparisons
+cat("Comparisons to perform:\n")
 print(comparisons)
+
+# Run differential expression analysis
 results <- list()
 for (i in 1:nrow(comparisons)) {
   Idents(SC.integrated_Pseudobulk) = SC.integrated_Pseudobulk$label
-  group1 = comparisons[i,]$group1
-  group2 = comparisons[i,]$group2
+  group1 = comparisons[i, ]$group1
+  group2 = comparisons[i, ]$group2
+  
+  cat("Running comparison:", group1, "vs", group2, "\n")
   
   sc0 = subset(SC.integrated_Pseudobulk, idents = c(group1, group2))
   
@@ -204,20 +343,25 @@ for (i in 1:nrow(comparisons)) {
   results[[i]] = de  # Store the result in the list
 }
 
-
 # Combine all results into a single table
 SchwannCellGenes_Shams = do.call(bind_rows, results)
 
 # Save the SchwannCellGenes in the global environment
 assign("SchwannCellGenes_Shams", SchwannCellGenes_Shams, envir = .GlobalEnv)
 
-#View(SchwannCellGenes_Shams)
-#Table 4
-#write.csv(SchwannCellGenes_Shams,file="Data_Files/Files/Table4")
+cat("Total genes analyzed:", nrow(SchwannCellGenes_Shams), "\n")
 
+# Save pseudobulk results (Table 4)
+write.csv(SchwannCellGenes_Shams, file = pseudobulk_output_path, row.names = FALSE)
+cat("Pseudobulk results saved to:", pseudobulk_output_path, "\n")
 
+################################################################################
+# FIGURE 3SI: SIGNIFICANT VS NON-SIGNIFICANT GENES
+################################################################################
 
-# Create gene_summary using base R (no dplyr needed)
+cat("\n=== Generating Figure 3SI ===\n")
+
+# Create gene_summary using base R
 sig_count <- sum(SchwannCellGenes_Shams$p_val_adj < 0.05, na.rm = TRUE)
 nonsig_count <- sum(SchwannCellGenes_Shams$p_val_adj >= 0.05, na.rm = TRUE)
 
@@ -226,9 +370,10 @@ gene_summary <- data.frame(
   n = c(sig_count, nonsig_count)
 )
 
-# Barplot to show significant vs non-significant genes resulting from pseudobulk analysis
+cat("Significant genes (padj < 0.05):", sig_count, "\n")
+cat("Non-significant genes:", nonsig_count, "\n")
 
-#Figure 3SH
+# Barplot to show significant vs non-significant genes
 gene_summary %>%
   ggplot(aes(x = significance, y = n, fill = significance)) +
   geom_bar(stat = "identity", width = 0.6) +
@@ -251,3 +396,4 @@ gene_summary %>%
         axis.title = element_text(size = 12)) +
   ylim(0, max(gene_summary$n) * 1.1)
 
+cat("\n=== Sham Schwann Cell and Pseudobulk Analysis Complete ===\n")
