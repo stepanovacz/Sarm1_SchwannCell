@@ -5,7 +5,7 @@ The code was developed for the manuscript currently under revision:
 Sarm1 Gates the Transition from Protective to Repair Schwann Cell States Following Nerve Injury
 **Stepanova, E.¹⁶, Hunter-Chang, S.¹², Lee, J.¹, Pavelec, C.⁷⁸, Tripathi, A.¹, Cho, C.¹, Vegiraju, T.¹, Kim-Aun, C.¹, Kucenas, S.¹²⁴⁶, Leitinger, N.⁷⁸, Coutinho-Budd, J.²⁴⁶, Campbell, J.¹²⁶, Deppmann, C.¹–⁶
 
-Session info for snRNAseq
+**Session info for snRNAseq**
 > sessionInfo()
 R version 4.4.1 (2024-06-14)
 Platform: x86_64-pc-linux-gnu
@@ -82,7 +82,8 @@ loaded via a namespace (and not attached):
 [193] lmerTest_3.1-3           remotes_2.5.0            beeswarm_0.4.0
 
 
-Session info for bulk RNAseq and bulk vs pseudobulk comparisons
+**Session info for bulk RNAseq and bulk vs pseudobulk comparisons**
+> sessionInfo()
 R version 4.4.2 (2024-10-31 ucrt)
 Platform: x86_64-w64-mingw32/x64
 Running under: Windows 11 x64 (build 26100)
@@ -119,4 +120,4 @@ loaded via a namespace (and not attached):
 [41] scales_1.4.0            UCSC.utils_1.2.0        bit64_4.6.0-1           XVector_0.46.0          httr_1.4.7             
 [46] bit_4.5.0.1             hms_1.1.3               png_0.1-8               memoise_2.0.1           rlang_1.1.5            
 [51] Rcpp_1.0.14             glue_1.8.0              DBI_1.2.3               vroom_1.6.5             rstudioapi_0.17.1      
-[56] jsonlite_1.8.9          plyr_1.8.9              R6_2.6.1                zlibbioc_1.52.0        
+[56] jsonlite_1.8.9          plyr_1.8.9              R6_2.6.1                zlibbioc_1.52.0 
