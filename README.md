@@ -5,7 +5,7 @@ The code was developed for the manuscript currently under revision:
 Sarm1 Gates the Transition from Protective to Repair Schwann Cell States Following Nerve Injury
 **Stepanova, E.¹⁶, Hunter-Chang, S.¹², Lee, J.¹, Pavelec, C.⁷⁸, Tripathi, A.¹, Cho, C.¹, Vegiraju, T.¹, Kim-Aun, C.¹, Kucenas, S.¹²⁴⁶, Leitinger, N.⁷⁸, Coutinho-Budd, J.²⁴⁶, Campbell, J.¹²⁶, Deppmann, C.¹–⁶
 
-
+Session info for snRNAseq
 > sessionInfo()
 R version 4.4.1 (2024-06-14)
 Platform: x86_64-pc-linux-gnu
@@ -80,3 +80,43 @@ loaded via a namespace (and not attached):
 [185] KernSmooth_2.23-24       data.table_1.17.8        htmlwidgets_1.6.4        fgsea_1.32.4            
 [189] biomaRt_2.62.1           rlang_1.1.6              spatstat.sparse_3.1-0    spatstat.explore_3.5-2  
 [193] lmerTest_3.1-3           remotes_2.5.0            beeswarm_0.4.0
+
+
+Session info for bulk RNAseq and bulk vs pseudobulk comparisons
+R version 4.4.2 (2024-10-31 ucrt)
+Platform: x86_64-w64-mingw32/x64
+Running under: Windows 11 x64 (build 26100)
+
+Matrix products: default
+
+
+locale:
+[1] LC_COLLATE=English_United States.utf8  LC_CTYPE=English_United States.utf8    LC_MONETARY=English_United States.utf8
+[4] LC_NUMERIC=C                           LC_TIME=English_United States.utf8    
+
+time zone: America/New_York
+tzcode source: internal
+
+attached base packages:
+[1] stats4    stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] gridExtra_2.3               dplyr_1.1.4                 ggplot2_3.5.2               reshape2_1.4.4             
+ [5] viridis_0.6.5               viridisLite_0.4.2           pheatmap_1.0.13             org.Mm.eg.db_3.20.0        
+ [9] AnnotationDbi_1.68.0        DESeq2_1.46.0               SummarizedExperiment_1.36.0 Biobase_2.66.0             
+[13] MatrixGenerics_1.18.1       matrixStats_1.5.0           GenomicRanges_1.58.0        GenomeInfoDb_1.42.3        
+[17] IRanges_2.40.1              S4Vectors_0.44.0            BiocGenerics_0.52.0         tximport_1.34.0            
+
+loaded via a namespace (and not attached):
+ [1] KEGGREST_1.46.0         gtable_0.3.6            lattice_0.22-6          tzdb_0.5.0              vctrs_0.6.5            
+ [6] tools_4.4.2             generics_0.1.4          parallel_4.4.2          tibble_3.2.1            RSQLite_2.3.9          
+[11] blob_1.2.4              pkgconfig_2.0.3         Matrix_1.7-1            RColorBrewer_1.1-3      lifecycle_1.0.4        
+[16] GenomeInfoDbData_1.2.13 stringr_1.5.1           compiler_4.4.2          farver_2.1.2            Biostrings_2.74.1      
+[21] codetools_0.2-20        pillar_1.11.0           crayon_1.5.3            BiocParallel_1.40.0     DelayedArray_0.32.0    
+[26] cachem_1.1.0            abind_1.4-8             tidyselect_1.2.1        locfit_1.5-9.11         stringi_1.8.4          
+[31] labeling_0.4.3          fastmap_1.2.0           grid_4.4.2              colorspace_2.1-1        cli_3.6.3              
+[36] SparseArray_1.6.1       magrittr_2.0.3          S4Arrays_1.6.0          withr_3.0.2             readr_2.1.5            
+[41] scales_1.4.0            UCSC.utils_1.2.0        bit64_4.6.0-1           XVector_0.46.0          httr_1.4.7             
+[46] bit_4.5.0.1             hms_1.1.3               png_0.1-8               memoise_2.0.1           rlang_1.1.5            
+[51] Rcpp_1.0.14             glue_1.8.0              DBI_1.2.3               vroom_1.6.5             rstudioapi_0.17.1      
+[56] jsonlite_1.8.9          plyr_1.8.9              R6_2.6.1                zlibbioc_1.52.0        
