@@ -1,5 +1,5 @@
 ################################################################################
-# Schwann Cell Analysis and Pseudotime Trajectory - Figures 2 and supplemental Figure 5
+# Schwann Cell Analysis and Pseudotime Trajectory - Figures 3 and supplemental Figure 5
 # 
 # Description: Subset Schwann cells from integrated dataset, perform
 # reclustering, marker identification, and pseudotime trajectory analysis
@@ -64,7 +64,7 @@ Idents(Cond.combineds_integrated) <- "seurat_clusters"
 # Expected: clusters 2, 5, 6, 7, 8
 
 ################################################################################
-# FIGURE 2A, S3A, S4A: HIGHLIGHT SCHWANN CELLS ON FULL UMAP
+# FIGURE 3A, S3A, S4A: HIGHLIGHT SCHWANN CELLS ON FULL UMAP
 ################################################################################
 
 cat("\n=== Generating Figures 2A, S3A, S4A ===\n")
@@ -162,10 +162,10 @@ SchwannCells <- FindClusters(SchwannCells, resolution = 0.3)
 SchwannCells <- RunUMAP(SchwannCells, dims = 1:x, reduction = "pca")
 
 ################################################################################
-# FIGURE 2A: SCHWANN CELL UMAP WITH CLUSTERS
+# FIGURE 3A: SCHWANN CELL UMAP WITH CLUSTERS
 ################################################################################
 
-cat("\n=== Generating Figure 2A ===\n")
+cat("\n=== Generating Figure 3A ===\n")
 
 Idents(SchwannCells) <- "seurat_clusters"
 DimPlot(SchwannCells, reduction = "umap", label = TRUE, pt.size = 0.05)
@@ -175,10 +175,10 @@ saveRDS(SchwannCells, schwann_cells_output_path)
 cat("Schwann Cells object saved to:", schwann_cells_output_path, "\n")
 
 ################################################################################
-# FIGURE 2B (FIGURE 3SB): SHAM VS INJURY SAMPLES
+# FIGURE 3B (FIGURE 3SB): SHAM VS INJURY SAMPLES
 ################################################################################
 
-cat("\n=== Generating Figure 2B (Figure 3SB) ===\n")
+cat("\n=== Generating Figure 3B (Figure 3SB) ===\n")
 
 # Create a data frame with the necessary information
 df <- data.frame(UMAP1 = SchwannCells@reductions$umap@cell.embeddings[, 1],
@@ -200,25 +200,13 @@ ggplot(data = df) +
         panel.grid = element_blank(),
         axis.line = element_line())
 
-################################################################################
-# FIGURE S5A-B: UMAP BY LABEL AND BATCH
-################################################################################
 
-cat("\n=== Generating Figures S5A-B ===\n")
-
-# Figure S5A
-DimPlot(SchwannCells, reduction = "umap", label = FALSE, 
-        pt.size = 0.05, group.by = "label")
-
-# Figure S5B
-DimPlot(SchwannCells, reduction = "umap", label = FALSE, 
-        pt.size = 0.05, group.by = "batch.orig", ncol = 1)
 
 ################################################################################
-# FIGURE 2C (SUPPLEMENTAL FIGURE 2D): SPLIT BY LABEL
+# FIGURE 3C : SPLIT BY LABEL
 ################################################################################
 
-cat("\n=== Generating Figure 2C (Supplemental Figure 2D) ===\n")
+cat("\n=== Generating Figure 3C ===\n")
 
 # Create dataframe with UMAP coordinates and condition/label
 df <- data.frame(UMAP1 = SchwannCells@reductions$umap@cell.embeddings[, 1],
@@ -262,7 +250,7 @@ label_plots <- lapply(valid_labels, function(label) {
   create_label_plot(df, label)
 })
 
-# Figure 2C
+# Figure 3C
 grid.arrange(grobs = label_plots, ncol = 2)
 
 ################################################################################
@@ -287,10 +275,10 @@ write.csv(SchwannCell.markers, file = markers_output_path, row.names = FALSE)
 cat("Schwann Cell markers saved to:", markers_output_path, "\n")
 
 ################################################################################
-# FIGURE 2D: HEATMAP OF TOP MARKERS
+# FIGURE 3D: HEATMAP OF TOP MARKERS
 ################################################################################
 
-cat("\n=== Generating Figure 2D ===\n")
+cat("\n=== Generating Figure 3D ===\n")
 
 # Get top 10 markers per cluster
 top10_SCs <- SchwannCell.markers %>% 
@@ -327,28 +315,28 @@ pheatmap(expr_mat_SCs,
          fontsize = 7)
 
 ################################################################################
-# FIGURE 2G: FEATURE AND VIOLIN PLOTS
+# FIGURE 3G: FEATURE AND VIOLIN PLOTS
 ################################################################################
 
-cat("\n=== Generating Figure 2G ===\n")
+cat("\n=== Generating Figure 3G ===\n")
 
-# Figure 2G - part 1
+# Figure 3G - part 1
 FeaturePlot(SchwannCells, 
             features = c("Camk1d", "Snhg11", "Mpz", "Ptgds", 
                          "Lsamp", "Stard13", "Ncam1", "Mbp"),
             combine = TRUE, pt.size = 0.1, ncol = 4)
 
-# Figure 2G - part 2
+# Figure 3G - part 2
 VlnPlot(SchwannCells, 
         features = c("Camk1d", "Snhg11", "Mpz", "Ptgds", 
                      "Lsamp", "Stard13", "Ncam1", "Mbp"), 
         ncol = 4)
 
 ################################################################################
-# FIGURE 2E-F: STACKED BAR PLOTS
+# FIGURE 3E-F: STACKED BAR PLOTS
 ################################################################################
 
-cat("\n=== Generating Figures 2E-F ===\n")
+cat("\n=== Generating Figures 3E-F ===\n")
 
 # Filter the data to include only "Sham" in Hashtags
 filtered_data_shams <- SchwannCells@meta.data %>%
@@ -378,14 +366,14 @@ label_order <- c(
 filtered_data_shams$label <- factor(filtered_data_shams$label, levels = label_order)
 filtered_data_injury$label <- factor(filtered_data_injury$label, levels = label_order)
 
-# Figure 2E
+# Figure 3E
 ggplot(filtered_data_shams, aes(x = label, fill = seurat_clusters)) + 
   geom_bar(position = "fill") +
   theme(panel.background = element_rect(fill = "white"), 
         panel.grid = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1))
 
-# Figure 2F
+# Figure 3F
 ggplot(filtered_data_injury, aes(x = label, fill = seurat_clusters)) + 
   geom_bar(position = "fill") +
   theme(panel.background = element_rect(fill = "white"), 
@@ -454,10 +442,10 @@ get_earliest_principal_node <- function(cds, time_bin = c("Sham-for-2hpi-WT",
 cds <- order_cells(cds, root_pr_nodes = get_earliest_principal_node(cds))
 
 ################################################################################
-# FIGURE 2H: PSEUDOTIME TRAJECTORY (WT)
+# FIGURE 3H: PSEUDOTIME TRAJECTORY (WT)
 ################################################################################
 
-cat("\n=== Generating Figure 2H ===\n")
+cat("\n=== Generating Figure 3H ===\n")
 
 # Fully visible dots
 plot_cells(cds,
@@ -475,7 +463,7 @@ plot_cells(cds,
 cds$monocle3_pseudotime <- pseudotime(cds)
 data.pseudo <- as.data.frame(colData(cds))
 
-# Figure 2H - boxplot
+# Figure 3H - boxplot
 ggplot(data.pseudo, aes(monocle3_pseudotime, reorder(seurat_clusters, monocle3_pseudotime), 
                         fill = seurat_clusters)) +
   geom_boxplot(position = position_dodge(width = 0.9)) +
@@ -546,9 +534,9 @@ cds <- order_cells(cds, root_pr_nodes = get_earliest_principal_node(cds))
 # FIGURE 2I: PSEUDOTIME TRAJECTORY (SARM1-KO)
 ################################################################################
 
-cat("\n=== Generating Figure 2I ===\n")
+cat("\n=== Generating Figure 3I ===\n")
 
-# Figure 2I - part 1
+# Figure 3I - part 1
 plot_cells(cds,
            color_cells_by = "pseudotime",
            label_cell_groups = FALSE,
@@ -564,7 +552,7 @@ plot_cells(cds,
 cds$monocle3_pseudotime <- pseudotime(cds)
 data.pseudo <- as.data.frame(colData(cds))
 
-# Figure 2I - part 2
+# Figure 3I - part 2
 ggplot(data.pseudo, aes(monocle3_pseudotime, reorder(seurat_clusters, monocle3_pseudotime), 
                         fill = seurat_clusters)) +
   geom_boxplot(position = position_dodge(width = 0.9)) +
@@ -578,10 +566,10 @@ ggplot(data.pseudo, aes(monocle3_pseudotime, reorder(seurat_clusters, monocle3_p
 ################################################################################
 
 cat("\n=== Mitochondrial Genes Analysis ===\n")
-cat("NOTE: Run this after running 'Figure 3' file to define oxphos_genes\n")
+cat("NOTE: Run this after running '12. Figure4_FigureS6.R' file to define oxphos_genes\n")
 
-# Supplementary Figure 3D, 4F, 3E
-# NOTE: These sections require oxphos_genes variable from "Figure 3" analysis
+# Supplementary Figure S5A-C
+# NOTE: These sections require oxphos_genes variable from "12. Figure4_FigureS6.R" analysis
 # Uncomment and run after oxphos_genes is defined
 
 # DefaultAssay(SchwannCells) <- "RNA"
@@ -592,7 +580,7 @@ cat("NOTE: Run this after running 'Figure 3' file to define oxphos_genes\n")
 # SchwannCells$seurat_clusters <- factor(SchwannCells$seurat_clusters, 
 #                                        levels = c("0", "1", "2", "3", '4', '5', '6', '7'))
 # 
-# # Supplemental Figure 3D
+# # Figure S5A
 # DotPlot(SchwannCells, features = unique_genes_combined, group.by = "label") +
 #   theme(
 #     axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 10),
@@ -601,7 +589,7 @@ cat("NOTE: Run this after running 'Figure 3' file to define oxphos_genes\n")
 #   scale_x_discrete(label = function(x) gsub(",", "", x)) +
 #   theme(plot.margin = margin(b = 50))
 # 
-# # Supplemental Figure 4F
+# # Figure S5B
 # DotPlot(SchwannCells, features = unique_genes_combined, group.by = "seurat_clusters") +
 #   theme(
 #     axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 10),
@@ -610,7 +598,7 @@ cat("NOTE: Run this after running 'Figure 3' file to define oxphos_genes\n")
 #   scale_x_discrete(label = function(x) gsub(",", "", x)) +
 #   theme(plot.margin = margin(b = 50))
 # 
-# # Supplemental Figure 3E
+# # Figure S5C
 # # Filter to only include 1dpi-Sarm1-KO and 1dpi-WT
 # SchwannCells_subset <- subset(SchwannCells, label %in% c("1dpi-Sarm1-KO", "1dpi-WT"))
 # 

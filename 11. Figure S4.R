@@ -316,7 +316,7 @@ FeaturePlot(InjuredSCs, features = c("Plp1", "Fth1", "Ptgds"), ncol = 3)
 cat("\n=== Mitochondrial Genes Analysis ===\n")
 cat("NOTE: Run this after running 'Figure 3' file to define oxphos_genes\n")
 
-# NOTE: These sections require oxphos_genes variable from "Figure 3" analysis
+# NOTE: These sections require oxphos_genes variable from "12. Figure4_FigureS6.R" analysis
 # Uncomment and run after oxphos_genes is defined
 
 # DefaultAssay(InjuredSCs) <- "RNA"

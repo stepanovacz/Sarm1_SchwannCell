@@ -46,10 +46,10 @@ Cond.combineds_integrated <- readRDS(integrated_object_path)
 # SchwannCells <- readRDS(schwann_cells_path)
 
 ################################################################################
-# FIGURE 1G - PART 1: UMAP WITH CLUSTER LABELS
+# FIGURE 2A- PART 1: UMAP WITH CLUSTER LABELS
 ################################################################################
 
-cat("\n=== Generating Figure 1G - Part 1 ===\n")
+cat("\n=== Generating Figure 2B - Part 1 ===\n")
 
 Idents(Cond.combineds_integrated) <- "seurat_clusters"
 DimPlot(Cond.combineds_integrated, reduction = "umap", label = TRUE, pt.size = 0.01)
@@ -59,10 +59,10 @@ DimPlot(Cond.combineds_integrated, reduction = "umap", label = TRUE, pt.size = 0
 # VlnPlot(Cond.combineds_integrated, features = c("nFeature_RNA"))
 
 ################################################################################
-# FIGURE 1G - PART 2: UMAP SPLIT BY CONDITION
+# FIGURE 2B - PART 2: UMAP SPLIT BY CONDITION
 ################################################################################
 
-cat("\n=== Generating Figure 1G - Part 2 ===\n")
+cat("\n=== Generating Figure 2B - Part 2 ===\n")
 
 # Create a new column for plotting groups, preserving the original condition names
 Cond.combineds_integrated$plot_groups <- as.character(Cond.combineds_integrated$condition)
@@ -111,10 +111,10 @@ top5 <- combined.integrated.markers %>%
 cat("Top 5 markers per cluster identified\n")
 
 ################################################################################
-# FIGURE 1H: STACKED VIOLIN PLOT OF TOP MARKERS
+# FIGURE 2C: STACKED VIOLIN PLOT OF TOP MARKERS
 ################################################################################
 
-cat("\n=== Generating Figure 1H ===\n")
+cat("\n=== Generating Figure 2C===\n")
 
 DefaultAssay(Cond.combineds_integrated) <- "RNA"
 VlnPlot(Cond.combineds_integrated, 
@@ -206,10 +206,10 @@ filtered_data_injury$label <- factor(filtered_data_injury$label,
                                      levels = label_order)
 
 ################################################################################
-# FIGURE 1I: COMPOSITION OF SHAM/NAIVE SAMPLES
+# FIGURE 2D: COMPOSITION OF SHAM/NAIVE SAMPLES
 ################################################################################
 
-cat("\n=== Generating Figure 1I ===\n")
+cat("\n=== Generating Figure 2D ===\n")
 
 ggplot(filtered_data_shams_and_naive, aes(x = label, fill = seurat_clusters)) + 
   geom_bar(position = "fill") +
@@ -218,10 +218,10 @@ ggplot(filtered_data_shams_and_naive, aes(x = label, fill = seurat_clusters)) +
         axis.text.x = element_text(angle = 45, hjust = 1))
 
 ################################################################################
-# FIGURE 1J: COMPOSITION OF INJURY SAMPLES
+# FIGURE 2E: COMPOSITION OF INJURY SAMPLES
 ################################################################################
 
-cat("\n=== Generating Figure 1J ===\n")
+cat("\n=== Generating Figure 2E ===\n")
 
 ggplot(filtered_data_injury, aes(x = label, fill = seurat_clusters)) + 
   geom_bar(position = "fill") +

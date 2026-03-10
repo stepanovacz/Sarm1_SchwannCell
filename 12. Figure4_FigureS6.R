@@ -33,14 +33,14 @@ schwann_cells_path <- "Data_Files/Files/SchwannCells.rds"
 
 # Paths to save output tables
 table6_path <- "Data_Files/Files/Table6.csv"   # Main pseudobulk results
-table7_path <- "Data_Files/Files/Table7.csv"   # GO BP WT
-table8_path <- "Data_Files/Files/Table8.csv"   # GO CC WT
-table9_path <- "Data_Files/Files/Table9.csv"   # GO BP Sarm1-KO
-table10_path <- "Data_Files/Files/Table10.csv" # GO CC Sarm1-KO
-table11_path <- "Data_Files/Files/Table11.csv" # KEGG WT
-table12_path <- "Data_Files/Files/Table12.csv" # KEGG Sarm1-KO
-table13_path <- "Data_Files/Files/Table13.csv" # Sex-split results
-table14_path <- "Data_Files/Files/Table14.csv" # All time points
+simple_results_go_BP_WT_path <- "Data_Files/Files/simple_results_go_BP_WT.csv"   # GO BP WT
+simple_results_cc_WT_path <- "Data_Files/Files/simple_results_cc_WT.csv"   # GO CC WT
+simple_results_go_BP_Sarm1KO_path_path <- "Data_Files/Files/simple_results_go_BP_Sarm1KO_path.csv"   # GO BP Sarm1-KO
+simple_results_go_CC_Sarm1KO_path <- "Data_Files/Files/simple_results_go_CC_Sarm1KO.csv" # GO CC Sarm1-KO
+kk_WT_path <- "Data_Files/Files/kk_WT.csv" # KEGG WT
+kk_Sarm1KO_path <- "Data_Files/Files/kk_Sarm1KO.csv" # KEGG Sarm1-KO
+table7_path <- "Data_Files/Files/Table7.csv" # Sex-split results
+table8_path <- "Data_Files/Files/Table8.csv" # All time points
 
 ################################################################################
 # LOAD DATA
@@ -150,15 +150,18 @@ assign("SchwannCellGenes", SchwannCellGenes, envir = .GlobalEnv)
 
 cat("Total genes analyzed:", nrow(SchwannCellGenes), "\n")
 
-# Save results (Table 6)
-write.csv(SchwannCellGenes, file = table6_path, row.names = FALSE)
-cat("Pseudobulk results saved to:", table6_path, "\n")
+# Save results (Table 6) - : Pseudobulk analysis of differentially expressed genes between 
+#Wild type sham and 1 day post injury Schwann Cells split by genotype (WT and Sarm1KO)
+
+#only saved p_val_adj less than 0.05 for the manuscript, but this code saves all p values
+write.csv(SchwannCellGenes, file = SchwannCellGenes_path, row.names = FALSE)
+cat("Pseudobulk results saved to:", SchwannCellGenes_path, "\n")
 
 ################################################################################
-# FIGURE 3A: VOLCANO PLOT - WT
+# FIGURE 4A: VOLCANO PLOT - WT
 ################################################################################
 
-cat("\n=== Generating Figure 3A (WT Volcano Plot) ===\n")
+cat("\n=== Generating Figure 4A (WT Volcano Plot) ===\n")
 
 comparison_volcano <- SchwannCellGenes %>% 
   filter(group1 == "Sham-for-1dpi-WT", group2 == "1dpi-WT")
@@ -184,7 +187,7 @@ top_neg_genes <- all_neg_genes %>%
   arrange(p_val_adj) %>%
   head(10)
 
-# Figure 3A
+# Figure 4A
 comparison_volcano %>%
   ggplot(aes(x = avg_logFC, y = -log10(p_val_adj))) + 
   geom_point(color = ifelse(comparison_volcano$p_val_adj < 0.05, "black", "#FF9999")) +
@@ -204,10 +207,10 @@ comparison_volcano %>%
   geom_hline(yintercept = -log10(0.05), color = "darkred")
 
 ################################################################################
-# FIGURE 3B: VOLCANO PLOT - SARM1-KO
+# FIGURE 4B: VOLCANO PLOT - SARM1-KO
 ################################################################################
 
-cat("\n=== Generating Figure 3B (Sarm1-KO Volcano Plot) ===\n")
+cat("\n=== Generating Figure 4B (Sarm1-KO Volcano Plot) ===\n")
 
 comparison_volcano <- SchwannCellGenes %>% 
   filter(group1 == "Sham-for-1dpi-Sarm1-KO", group2 == "1dpi-Sarm1-KO")
@@ -230,7 +233,7 @@ top_neg_genes <- all_neg_genes %>%
   arrange(p_val_adj) %>%
   head(10)
 
-# Figure 3B
+# Figure 4B
 comparison_volcano %>%
   ggplot(aes(x = avg_logFC, y = -log10(p_val_adj))) + 
   geom_point(color = ifelse(comparison_volcano$p_val_adj < 0.05, "black", "#FF9999")) +
@@ -250,10 +253,10 @@ comparison_volcano %>%
   geom_hline(yintercept = -log10(0.05), color = "darkred")
 
 ################################################################################
-# FIGURE 3C: WT VS SARM1-KO COMPARISON
+# FIGURE 4C: WT VS SARM1-KO COMPARISON
 ################################################################################
 
-cat("\n=== Generating Figure 3C (WT vs Sarm1-KO Comparison) ===\n")
+cat("\n=== Generating Figure 4C (WT vs Sarm1-KO Comparison) ===\n")
 
 # Prepare data for comparison
 wt_data <- SchwannCellGenes %>% 
@@ -306,7 +309,7 @@ bottom_right_genes <- sig_genes %>%
 
 highlight_genes <- rbind(top_left_genes, bottom_right_genes)
 
-# Figure 3C
+# Figure 4C
 ggplot(sig_genes, aes(x = wt_logFC, y = ko_logFC, 
                       color = regulation_type, 
                       shape = sig_status)) +
@@ -412,16 +415,16 @@ go_bp <- enrichGO(
   pvalueCutoff = 0.05
 )
 
-# Figure 3D
+# Figure 4D
 dotplot(go_bp, showCategory = 15, title = "GO Biological Process Enrichment WT 1dpi")
 
-# Save results (Table 7)
+# Save results (simple_results_go_BP_WT)
 simple_results_go_BP_WT <- data.frame(
   GO_ID = go_bp@result$ID,
   pValue = go_bp@result$pvalue
 )
-write.csv(simple_results_go_BP_WT, file = table7_path, row.names = FALSE)
-cat("GO BP WT results saved to:", table7_path, "\n")
+write.csv(simple_results_go_BP_WT, file = simple_results_go_BP_WT_path, row.names = FALSE)
+cat("GO BP WT results saved to:", simple_results_go_BP_WT_path, "\n")
 
 # Run GO enrichment analysis for Cellular Component
 go_cc_WT <- enrichGO(
@@ -435,13 +438,13 @@ go_cc_WT <- enrichGO(
 # Figure S6C
 dotplot(go_cc_WT, showCategory = 15, title = "GO Cellular Component ontology WT 1dpi")
 
-# Save results (Table 8)
+# Save results (simple_results_cc_WT)
 simple_results_cc_WT <- data.frame(
   GO_ID = go_cc_WT@result$ID,
   pValue = go_cc_WT@result$pvalue
 )
-write.csv(simple_results_cc_WT, file = table8_path, row.names = FALSE)
-cat("GO CC WT results saved to:", table8_path, "\n")
+write.csv(simple_results_cc_WT, file = simple_results_cc_WT_path, row.names = FALSE)
+cat("GO CC WT results saved to:", simple_results_cc_WT_path, "\n")
 
 ################################################################################
 # GO ENRICHMENT ANALYSIS - SARM1-KO
@@ -471,7 +474,7 @@ go_bp_Sarm1KO <- enrichGO(
   pvalueCutoff = 0.05
 )
 
-# Figure 3E
+# Figure 4E
 dotplot(go_bp_Sarm1KO, showCategory = 15, title = "GO Biological Processes ontology Sarm1KO 1dpi")
 
 # Save results (Table 9)
@@ -479,8 +482,8 @@ simple_results_go_BP_Sarm1KO <- data.frame(
   GO_ID = go_bp_Sarm1KO@result$ID,
   pValue = go_bp_Sarm1KO@result$pvalue
 )
-write.csv(simple_results_go_BP_Sarm1KO, file = table9_path, row.names = FALSE)
-cat("GO BP Sarm1-KO results saved to:", table9_path, "\n")
+write.csv(simple_results_go_BP_Sarm1KO, file = simple_results_go_BP_Sarm1KO_path, row.names = FALSE)
+cat("GO BP Sarm1-KO results saved to:", simple_results_go_BP_Sarm1KO_path, "\n")
 
 # Run GO enrichment analysis for Cellular Component
 go_cc_Sarm1KO <- enrichGO(
@@ -494,13 +497,13 @@ go_cc_Sarm1KO <- enrichGO(
 # Figure S6D
 dotplot(go_cc_Sarm1KO, showCategory = 15, title = "GO Cellular Component ontology Sarm1KO 1dpi")
 
-# Save results (Table 10)
+# Save results (simple_results_go_CC_Sarm1KO)
 simple_results_go_CC_Sarm1KO <- data.frame(
   GO_ID = go_cc_Sarm1KO@result$ID,
   pValue = go_cc_Sarm1KO@result$pvalue
 )
-write.csv(simple_results_go_CC_Sarm1KO, file = table10_path, row.names = FALSE)
-cat("GO CC Sarm1-KO results saved to:", table10_path, "\n")
+write.csv(simple_results_go_CC_Sarm1KO, file = simple_results_go_CC_Sarm1KO_path, row.names = FALSE)
+cat("GO CC Sarm1-KO results saved to:", simple_results_go_CC_Sarm1KO_path, "\n")
 
 ################################################################################
 # KEGG PATHWAY ANALYSIS - WT
@@ -551,13 +554,13 @@ kk_WT <- gseKEGG(
   pvalueCutoff = 0.05
 )
 
-# Figure 3F
+# Figure 4F
 dotplot(kk_WT, showCategory = 5) +
   ggtitle("KEGG Wild Type Schwann Cells 1 day post injury")
 
-# Save results (Table 11)
-write.csv(kk_WT, file = table11_path, row.names = FALSE)
-cat("KEGG WT results saved to:", table11_path, "\n")
+# Save results (kk_WT)
+write.csv(kk_WT, file = kk_WT_path, row.names = FALSE)
+cat("KEGG WT results saved to:",kk_WT_path, "\n")
 
 ################################################################################
 # KEGG PATHWAY ANALYSIS - SARM1-KO
@@ -608,13 +611,13 @@ kk_Sarm1KO <- gseKEGG(
   pvalueCutoff = 0.05
 )
 
-# Figure 3E
+# Figure 4E
 dotplot(kk_Sarm1KO, showCategory = 5) +
   ggtitle("KEGG Sarm1 Knockout Schwann Cells 1 day post injury")
 
 # Save results (Table 12)
-write.csv(kk_Sarm1KO, file = table12_path, row.names = FALSE)
-cat("KEGG Sarm1-KO results saved to:", table12_path, "\n")
+write.csv(kk_Sarm1KO, file = kk_Sarm1KO_path, row.names = FALSE)
+cat("KEGG Sarm1-KO results saved to:", kk_Sarm1KO_path, "\n")
 
 ################################################################################
 # EXTRACT OXIDATIVE PHOSPHORYLATION GENES
@@ -661,10 +664,10 @@ if (length(oxphos_index) > 0) {
 }
 
 ################################################################################
-# FIGURE 3H: HEATMAP OF OXPHOS GENES
+# FIGURE 4H: HEATMAP OF OXPHOS GENES
 ################################################################################
 
-cat("\n=== Generating Figure 3H (OxPhos Heatmap) ===\n")
+cat("\n=== Generating Figure 4H (OxPhos Heatmap) ===\n")
 
 # Sort the genes alphabetically
 all_oxphos_genes <- sort(oxphos_genes)
@@ -696,7 +699,7 @@ filtered_SchwannCellGenes$group2 <- factor(filtered_SchwannCellGenes$group2,
                                            levels = c("2hpi-WT", "1dpi-WT", "1dpi-Sarm1-KO",
                                                       "3dpi-WT", "3dpi-Sarm1-KO"))
 
-# Figure 3H
+# Figure 4H
 ggplot(filtered_SchwannCellGenes,
        mapping = aes(x = gene_order,
                      y = group2,
@@ -731,7 +734,7 @@ ggplot(filtered_SchwannCellGenes,
             fontface = "bold")
 
 ################################################################################
-# FIGURE S6B: HEATMAP ALTERNATIVE VIEW
+# FIGURE 4H: HEATMAP ALTERNATIVE VIEW
 ################################################################################
 
 cat("\n=== Generating Figure S6D (OxPhos Heatmap Alternative) ===\n")
@@ -839,9 +842,12 @@ for (i in 1:nrow(comparisons)) {
 SchwannCellGenes_sex_split = do.call(bind_rows, results)
 assign("SchwannCellGenes_sex_split", SchwannCellGenes_sex_split, envir = .GlobalEnv)
 
-# Save results (Table 13)
-write.csv(SchwannCellGenes_sex_split, file = table13_path, row.names = FALSE)
-cat("Sex-split results saved to:", table13_path, "\n")
+# Save results (Table 7):Pseudobulk analysis of differentially expressed genes between Wild type sham and 
+#1 day post injury Schwann Cells split by genotype (WT and Sarm1KO) and sex
+#only saved p_val_adj less than 0.05 for the manuscript, but this code saves all p values
+
+write.csv(SchwannCellGenes_sex_split, file = table7_path, row.names = FALSE)
+cat("Sex-split results saved to:", table7_path, "\n")
 
 ################################################################################
 # FIGURE S6A: SEX-SPECIFIC HEATMAP
@@ -1159,18 +1165,19 @@ for (i in 1:nrow(comparisons)) {
 SchwannCellGenes_all_time_points = do.call(bind_rows, results)
 assign("SchwannCellGenes_all_time_points", SchwannCellGenes_all_time_points, envir = .GlobalEnv)
 
-# Save results (Table 14)
-write.csv(SchwannCellGenes_all_time_points, file = table14_path, row.names = FALSE)
-cat("All time points results saved to:", table14_path, "\n")
+# Save results (Table 8):Pseudobulk analysis of differentially expressed genes between Wild type 
+#sham and 1 day post injury (1dpi) and sham and 2 hours post injury (2hpi) Schwann Cells split by genotype (WT and Sarm1KO)
+
+#only saved p_val_adj less than 0.05 for the manuscript, but this code saves all p values
+
+write.csv(SchwannCellGenes_all_time_points, file = table8_path, row.names = FALSE)
+cat("All time points results saved to:", table8_path, "\n")
 
 ################################################################################
 # FIGURE S6B: ALL TIME POINTS HEATMAP
 ################################################################################
 
 cat("\n=== Generating Figure S6B (All Time Points Heatmap) ===\n")
-
-# NOTE: Code structure similar to Figure 3H but with all_time_points data
-# Prepare the heatmap with all time points...
 
 cat("\n=== Analysis Complete ===\n")
 cat("All tables and figures have been generated\n")
