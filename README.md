@@ -2,8 +2,11 @@
 This code supports the analysis of single-nucleus RNA sequencing (snRNA-seq) data from wild-type (WT) and Sarm1 knockout (KO) sciatic nerves following transection injury. Samples include sham, 2 hours post-injury, and 1 day post-injury time points.
 
 The code was developed for the manuscript currently under revision:
-Sarm1 Gates the Transition from Protective to Repair Schwann Cell States Following Nerve Injury
-**Stepanova, E.¹⁶, Hunter-Chang, S.¹², Lee, J.¹, Pavelec, C.⁷⁸, Tripathi, A.¹, Cho, C.¹, Vegiraju, T.¹, Kim-Aun, C.¹, Kucenas, S.¹²⁴⁶, Leitinger, N.⁷⁸, Coutinho-Budd, J.²⁴⁶, Campbell, J.¹²⁶, Deppmann, C.¹–⁶
+Schwann Cells Mount an Early Injury Response in Sarm1 Knockout Nerves, and Glial Sarm1 Loss Delays Axon Degeneration
+Stepanova E.1,6, Hunter-Chang, S.1,2, Lee, J.1, Tripathi, A.1,  Pavelec, C.7,8, Cho, C.1, Vegiraju, T.1, Guo, J.1, Kim-Aun, C.1, Kucenas, S.1,2,4,6, Leitinger, N.7,8, Coutinho-Budd, J.2,4,6 , Campbell, J.*1,2,6, Deppmann C.*1-6.
+
+
+"Demultiplexed_Hashtag_Files" contains all the demultiplexed hashtag files that can be read directly in the code. Download the file and use them R files 1-6. The cDNA fastq and h5 files are deposited under GEO accesssion code GSE332913. Bulk RNA sequencing data is deposited under accesssion code GSE332854.
 
 **Session info for snRNAseq**
 > sessionInfo()
