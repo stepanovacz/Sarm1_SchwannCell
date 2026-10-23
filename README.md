@@ -2,9 +2,8 @@
 This code supports the analysis of single-nucleus RNA sequencing (snRNA-seq) data from wild-type (WT) and Sarm1 knockout (KO) sciatic nerves following transection injury. Samples include sham, 2 hours post-injury, and 1 day post-injury time points.
 
 The code was developed for the manuscript currently under revision:
-Sarm1 Gates the Transition from Protective to Repair Schwann Cell States Following Nerve Injury
-
-**Stepanova, E., Hunter-Chang, S., Lee, J., Pavelec, C., Tripathi, A., Cho, C., Vegiraju, T., Guo, J., Kim-Aun, C., Kucenas, S., Leitinger, N., Coutinho-Budd, J., Campbell, J., Deppmann, C.
+Schwann Cells Mount an Early Injury Response in Sarm1 Knockout Nerves, and Glial Sarm1 Loss Delays Axon Degeneration
+Stepanova E.1,6, Hunter-Chang, S.1,2, Lee, J.1, Tripathi, A.1,  Pavelec, C.7,8, Cho, C.1, Vegiraju, T.1, Guo, J.1, Kim-Aun, C.1, Kucenas, S.1,2,4,6, Leitinger, N.7,8, Coutinho-Budd, J.2,4,6 , Campbell, J.*1,2,6, Deppmann C.*1-6.
 
 
 **Session info for snRNAseq**
